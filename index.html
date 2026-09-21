@@ -197,18 +197,18 @@
   .sec-name { font-size: 12px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 700; }
   .sheet {
     max-height: 58vh; overflow: auto; padding: 4px 2px;
-    font: 14.5px/2.1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    white-space: pre-wrap; word-break: break-word;
+    font: clamp(12px, 3.1vw, 14.5px)/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  .sheet .ln { min-height: 1.1em; }
+  .sheet .ln { min-height: 1.1em; white-space: pre; }
+  .sheet .crow { color: var(--teal); font-weight: 700; }
+  .sheet .lrow { margin-bottom: 9px; }
   .sheet .hd { color: var(--muted); font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 14px; font-family: inherit; }
   .sheet .lyric { color: #c9d3e2; }
   .inline-chord {
-    background: rgba(45,212,191,.14); border: 1px solid rgba(45,212,191,.42);
-    color: var(--teal); border-radius: 7px; padding: 2px 6px; margin: 0 1px;
-    font: inherit; font-weight: 700; cursor: pointer; line-height: 1.2;
+    background: none; border: none; padding: 2px 0; margin: 0;   /* no side padding: the columns must stay true */
+    color: var(--teal); font: inherit; font-weight: 700; cursor: pointer; border-radius: 4px;
   }
-  .inline-chord.on { background: var(--teal); color: #04302a; border-color: transparent; }
+  .inline-chord.on { background: var(--teal); color: #04302a; }
   .keyrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .keyrow .muted { white-space: nowrap; }
 
@@ -603,10 +603,14 @@ const SECTION_WORD = /(pre[\s-]?chorus|chorus|verse|intro|outro|bridge|solo|inte
 const GLUED = /([A-Za-z])([A-G][#b]?(?:maj7|maj9|madd9|m7b5|7sus4|add9|sus2|sus4|dim7|aug7|m11|m13|M7|m6|m7|m9|11|13|69|5|6|7|9|m)?)(?=[a-z'\u2019])/g;
 
 function unglue(text) {
-  const glued = (text.match(GLUED) || []).length;
-  const loose = text.split(/[\s|,;:]+/).filter(t => parseChord(t.replace(/[\[\]()]/g, ''))).length;
-  if (glued < 3 || glued < loose) return text;     // ordinary sheet: leave capitalised words alone
-  return text.replace(GLUED, '$1[$2]');            // chord sites that split words around each chord
+  const counts = {};
+  let m;
+  GLUED.lastIndex = 0;
+  while ((m = GLUED.exec(text))) counts[m[2]] = (counts[m[2]] || 0) + 1;
+  const all = Object.keys(counts).reduce((n, k) => n + counts[k], 0);
+  const repeated = Object.keys(counts).filter(k => counts[k] > 1).reduce((n, k) => n + counts[k], 0);
+  if (repeated < 3 && all < 6) return text;        // a few capitalised words are words, not chords
+  return text.replace(GLUED, '$1[$2]');            // this page splits words around chords, so split them all
 }
 
 function normalizeChordText(text) {
@@ -854,49 +858,83 @@ function sheetChord(written) {
     written.bass === null ? null : written.bass + transpose, useFlats);
 }
 
+function chordButton(written) {
+  const chord = sheetChord(written);
+  const b = document.createElement('button');
+  b.className = 'inline-chord' + (chord.display === current.display ? ' on' : '');
+  b.textContent = chord.display;
+  b.onclick = () => {
+    stopProgression();
+    const at = flat.findIndex(c => c.display === chord.display);
+    if (at > -1) setIndex(at);
+    else setChord(chord, buildVoicing(chord, voicingMode === 'smooth' ? currentVoicing : null, null));
+    playCurrent();
+  };
+  return b;
+}
+
 function renderSheet() {
   const frag = document.createDocumentFragment();
+
   normalizeChordText($('input').value).split(/\r?\n/).forEach(raw => {
-    const line = document.createElement('div');
-    line.className = 'ln';
     const h = headingOf(raw);
     if (h && !h.rest.trim()) {
-      line.className = 'ln hd';
-      line.textContent = tidyName(h.name);
-      frag.appendChild(line);
+      const head = document.createElement('div');
+      head.className = 'ln hd';
+      head.textContent = tidyName(h.name);
+      frag.appendChild(head);
       return;
     }
-    const tokens = raw.split(/(\[[^\]]{1,10}\]|\s+)/).filter(t => t !== '' && t !== undefined);
+
+    const tokens = raw.split(/(\[[^\]]{1,10}\]|\s+)/).filter(t => t !== '');
     const words = tokens.filter(t => t.trim());
     const bareOf = t => t.replace(/^[\[(]|[\])]$/g, '');
     const hits = words.filter(t => parseChord(bareOf(t))).length;
     const lyrical = hits / Math.max(words.length, 1) < 0.5;
+
+    const chordLine = !lyrical;             // a line of chords with no words of its own
+    const marks = [];                       // chords, and the column of the word they sit on
+    let lyric = '', orig = 0;
     tokens.forEach(tok => {
       const bare = bareOf(tok);
       const bracketed = /^\[[^\]]+\]$/.test(tok);
       const written = tok.trim() && (bracketed || !(lyrical && bare.length === 1)) ? parseChord(bare) : null;
-      if (!written) {
-        const span = document.createElement('span');
-        if (tok.trim()) span.className = 'lyric';
-        span.textContent = tok;
-        line.appendChild(span);
-        return;
+      if (written) {                        // the chord leaves the words and reappears above them
+        marks.push({ col: chordLine ? orig : lyric.length, written });
+      } else {
+        lyric += tok;
       }
-      const chord = sheetChord(written);
-      const b = document.createElement('button');
-      b.className = 'inline-chord' + (chord.display === current.display ? ' on' : '');
-      b.textContent = chord.display;
-      b.onclick = () => {
-        stopProgression();
-        const at = flat.findIndex(c => c.display === chord.display);
-        if (at > -1) setIndex(at);
-        else setChord(chord, buildVoicing(chord, voicingMode === 'smooth' ? currentVoicing : null, null));
-        playCurrent();
-      };
-      line.appendChild(b);
+      orig += tok.length;
     });
-    frag.appendChild(line);
+
+    if (!marks.length) {
+      const line = document.createElement('div');
+      line.className = 'ln lrow';
+      line.textContent = lyric;
+      frag.appendChild(line);
+      return;
+    }
+
+    const chordRow = document.createElement('div');
+    chordRow.className = 'ln crow';
+    let col = 0;
+    marks.forEach(m => {
+      const at = Math.max(m.col, col ? col + 1 : 0);
+      if (at > col) chordRow.appendChild(document.createTextNode(' '.repeat(at - col)));
+      const btn = chordButton(m.written);
+      chordRow.appendChild(btn);
+      col = at + btn.textContent.length;
+    });
+    frag.appendChild(chordRow);
+
+    if (lyric.trim()) {
+      const line = document.createElement('div');
+      line.className = 'ln lrow';
+      line.textContent = lyric;
+      frag.appendChild(line);
+    }
   });
+
   $('sheet').replaceChildren(frag);
 }
 
