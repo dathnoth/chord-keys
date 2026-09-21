@@ -600,7 +600,7 @@ let stars = load(KEY_STARS, []);
 /* ---------------------------- song / key / transpose ---------------------------- */
 const SECTION_WORD = /(pre[\s-]?chorus|chorus|verse|intro|outro|bridge|solo|interlude|refrain|instrumental|breakdown|break|hook|coda|tag|ending|riff)/i;
 
-const GLUED = /([A-Za-z])([A-G][#b]?(?:maj7|maj9|madd9|m7b5|7sus4|add9|sus2|sus4|dim7|aug7|maj|min|dim|aug|sus|m11|m13|M7|m6|m7|m9|11|13|69|5|6|7|9|m)?)(?=[a-z])/g;
+const GLUED = /([A-Za-z])([A-G][#b]?(?:maj7|maj9|madd9|m7b5|7sus4|add9|sus2|sus4|dim7|aug7|m11|m13|M7|m6|m7|m9|11|13|69|5|6|7|9|m)?)(?=[a-z'\u2019])/g;
 
 function unglue(text) {
   const glued = (text.match(GLUED) || []).length;
