@@ -602,6 +602,8 @@ const SECTION_WORD = /(pre[\s-]?chorus|chorus|verse|intro|outro|bridge|solo|inte
 
 const GLUED = /([A-Za-z])([A-G][#b]?(?:maj7|maj9|madd9|m7b5|7sus4|add9|sus2|sus4|dim7|aug7|m11|m13|M7|m6|m7|m9|11|13|69|5|6|7|9|m)?)(?=[a-z'\u2019])/g;
 
+let fragmented = false;                            // set when a page splits its words around chords
+
 function unglue(text) {
   const counts = {};
   let m;
@@ -609,8 +611,39 @@ function unglue(text) {
   while ((m = GLUED.exec(text))) counts[m[2]] = (counts[m[2]] || 0) + 1;
   const all = Object.keys(counts).reduce((n, k) => n + counts[k], 0);
   const repeated = Object.keys(counts).filter(k => counts[k] > 1).reduce((n, k) => n + counts[k], 0);
-  if (repeated < 3 && all < 6) return text;        // a few capitalised words are words, not chords
-  return text.replace(GLUED, '$1[$2]');            // this page splits words around chords, so split them all
+  fragmented = repeated >= 3 || all >= 6;          // a few capitalised words are words, not chords
+  return fragmented ? text.replace(GLUED, '$1[$2]') : text;
+}
+
+const isChordOnly = line => {
+  const toks = line.trim().split(/\s+/).filter(Boolean);
+  return toks.length > 0 && toks.every(t => parseChord(t.replace(/[\[\]()]/g, '')));
+};
+
+function reflow(text) {                            // put a broken-up page back into whole lines
+  const out = [];
+  let buf = '';
+  const flush = () => { if (buf.trim()) out.push(buf.replace(/\s+$/, '')); buf = ''; };
+  for (const raw of text.split(/\r?\n/)) {
+    if (!raw.trim()) { flush(); out.push(''); continue; }
+    const h = headingOf(raw);
+    if (h && !h.rest.trim()) { flush(); out.push(raw.trim()); continue; }
+    if (isChordOnly(raw)) {                        // a chord alone on a line belongs to the words that follow
+      buf += raw.trim().split(/\s+/).map(t => '[' + t.replace(/[\[\]()]/g, '') + ']').join('');
+      continue;
+    }
+    const onlyChords = buf && !buf.replace(/\[[^\]]*\]/g, '').trim();
+    const continues = buf && (onlyChords || /^[a-z'\u2019]/.test(raw.trim())) && buf.length < 220;
+    if (continues) {
+      const space = /\s$/.test(buf) ? ' ' : '';    // the page keeps its own spaces at word boundaries
+      buf = buf.replace(/\s+$/, '') + space + raw.replace(/^\s+/, '');
+    } else {
+      flush();
+      buf = raw.trim();
+    }
+  }
+  flush();
+  return out.join('\n');
 }
 
 function normalizeChordText(text) {
@@ -620,6 +653,11 @@ function normalizeChordText(text) {
     .replace(/[\u2010-\u2015]/g, '-')
     .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
     .replace(/[\u00a0\u2000-\u200b\u202f]/g, ' '));
+}
+
+function songText(text) {
+  const normalized = normalizeChordText(text);
+  return fragmented ? reflow(normalized) : normalized;
 }
 
 function chordsInLine(line) {
@@ -662,7 +700,7 @@ function parseSong(text) {
       if (!last || last.display !== c.display) sec.chords.push(c);
     });
   };
-  for (const line of normalizeChordText(text).split(/\r?\n/)) {
+  for (const line of songText(text).split(/\r?\n/)) {
     const h = headingOf(line);
     if (h) {
       sec = { name: tidyName(h.name), chords: [] };
@@ -876,7 +914,7 @@ function chordButton(written) {
 function renderSheet() {
   const frag = document.createDocumentFragment();
 
-  normalizeChordText($('input').value).split(/\r?\n/).forEach(raw => {
+  songText($('input').value).split(/\r?\n/).forEach(raw => {
     const h = headingOf(raw);
     if (h && !h.rest.trim()) {
       const head = document.createElement('div');
