@@ -600,13 +600,22 @@ let stars = load(KEY_STARS, []);
 /* ---------------------------- song / key / transpose ---------------------------- */
 const SECTION_WORD = /(pre[\s-]?chorus|chorus|verse|intro|outro|bridge|solo|interlude|refrain|instrumental|breakdown|break|hook|coda|tag|ending|riff)/i;
 
+const GLUED = /([A-Za-z])([A-G][#b]?(?:maj7|maj9|madd9|m7b5|7sus4|add9|sus2|sus4|dim7|aug7|maj|min|dim|aug|sus|m11|m13|M7|m6|m7|m9|11|13|69|5|6|7|9|m)?)(?=[a-z])/g;
+
+function unglue(text) {
+  const glued = (text.match(GLUED) || []).length;
+  const loose = text.split(/[\s|,;:]+/).filter(t => parseChord(t.replace(/[\[\]()]/g, ''))).length;
+  if (glued < 3 || glued < loose) return text;     // ordinary sheet: leave capitalised words alone
+  return text.replace(GLUED, '$1[$2]');            // chord sites that split words around each chord
+}
+
 function normalizeChordText(text) {
-  return String(text)
+  return unglue(String(text)
     .normalize('NFKC')                                   // subscript/superscript letters fold to plain ones
     .replace(/\u266d/g, 'b').replace(/\u266f/g, '#').replace(/\u266e/g, '')
     .replace(/[\u2010-\u2015]/g, '-')
     .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
-    .replace(/[\u00a0\u2000-\u200b\u202f]/g, ' ');
+    .replace(/[\u00a0\u2000-\u200b\u202f]/g, ' '));
 }
 
 function chordsInLine(line) {
