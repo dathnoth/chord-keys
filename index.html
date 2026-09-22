@@ -93,7 +93,8 @@
     border-radius: 10px 10px 14px 14px; padding-top: 9px;
     background: linear-gradient(#2b3140, #171c26);
     box-shadow: inset 0 3px 0 rgba(255,255,255,.07), 0 12px 26px rgba(0,0,0,.4);
-    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+    -webkit-touch-callout: none;
   }
   .key {
     position: absolute; top: 9px;
@@ -794,12 +795,7 @@ function renderPiano() {
     lbl.className = 'lbl';
     lbl.textContent = noteName(k.pitch, current.flat) + (k.black ? '' : k.octave);
     el.appendChild(lbl);
-    el.addEventListener('pointerdown', () => {
-      el.classList.add('pressed');
-      playSemitones([k.sem], 0);
-    });
-    el.addEventListener('pointerup', () => el.classList.remove('pressed'));
-    el.addEventListener('pointerleave', () => el.classList.remove('pressed'));
+    el.dataset.sem = k.sem;
     frag.appendChild(el);
     if (!k.black) whiteIdx++;
   }
@@ -1055,6 +1051,7 @@ function playNote(midi, when, level) {
   body.connect(verb);
 
   const ring = 1.9 + 5.5 * Math.max(0, (72 - midi) / 48);   // bass strings ring longer than treble
+  const strings = [];
   PARTIALS.forEach(([n, amp]) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
@@ -1067,6 +1064,7 @@ function playNote(midi, when, level) {
     osc.connect(g).connect(body);
     osc.start(when);
     osc.stop(when + decay + 0.05);
+    strings.push({ osc, gainParam: g.gain });
   });
 
   const hammer = ctx.createBufferSource();                   // the thud of the key itself
@@ -1080,12 +1078,33 @@ function playNote(midi, when, level) {
   hg.gain.exponentialRampToValueAtTime(0.0001, when + 0.045);
   hammer.connect(hp).connect(hg).connect(master);
   hammer.start(when);
+
+  return {
+    // called when a held key is released: damps the strings, like lifting the felt onto them
+    release(atTime) {
+      const t = Math.max(atTime, when + 0.02);
+      strings.forEach(({ osc, gainParam }) => {
+        gainParam.cancelScheduledValues(t);
+        gainParam.setValueAtTime(Math.max(gainParam.value, 0.0003), t);
+        gainParam.exponentialRampToValueAtTime(0.0001, t + 0.1);
+        osc.stop(t + 0.13);
+      });
+    },
+  };
 }
 
 function playSemitones(semitones, spread = 0.014) {
   if (!ensureAudio()) return;
   const now = audio.currentTime + 0.02;
   semitones.forEach((s, i) => playNote(12 * (startOctave + 1) + s, now + i * spread, i === 0 ? 1 : 0.88));
+}
+
+function pressKey(sem) {
+  if (!ensureAudio()) return null;
+  return playNote(12 * (startOctave + 1) + sem, audio.currentTime + 0.006, 1);
+}
+function releaseKey(voice) {
+  if (voice) voice.release(audio.currentTime);
 }
 
 function playCurrent() {
@@ -1362,6 +1381,47 @@ $('progBtn').onclick = playProgression;
 $('saveBtn').onclick = saveSong;
 $('newBtn').onclick = newSong;
 $('fingerToggle').onchange = renderPiano;
+
+/* click-and-drag across the keyboard: each finger/pointer sounds whatever key is under it */
+const strokes = new Map();   // pointerId -> { el, voice }
+const keyAt = (x, y) => document.elementFromPoint(x, y)?.closest?.('.key') || null;
+
+function strokeTo(id, el) {
+  const s = strokes.get(id);
+  if (s && s.el === el) return;
+  if (s) { releaseKey(s.voice); s.el?.classList.remove('pressed'); }
+  if (el) {
+    el.classList.add('pressed');
+    strokes.set(id, { el, voice: pressKey(+el.dataset.sem) });
+  } else {
+    strokes.set(id, { el: null, voice: null });
+  }
+}
+function strokeEnd(id) {
+  const s = strokes.get(id);
+  if (!s) return;
+  releaseKey(s.voice);
+  s.el?.classList.remove('pressed');
+  strokes.delete(id);
+}
+
+$('piano').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.key');
+  if (!el) return;
+  e.preventDefault();
+  strokeTo(e.pointerId, el);
+});
+// listen on window, not #piano: once a drag leaves the keyboard's own DOM
+// subtree the browser stops bubbling move events through it, so tracking
+// here (filtered to active strokes) is what lets a drag-off correctly damp
+window.addEventListener('pointermove', e => {
+  if (!strokes.has(e.pointerId)) return;
+  strokeTo(e.pointerId, keyAt(e.clientX, e.clientY));
+});
+$('piano').addEventListener('contextmenu', e => e.preventDefault());
+['pointerup', 'pointercancel'].forEach(evt =>
+  window.addEventListener(evt, e => strokeEnd(e.pointerId)));
+
 $('octUp').onclick = () => { if (startOctave < 6) { startOctave++; renderPiano(); } };
 $('octDown').onclick = () => { if (startOctave > 1) { startOctave--; renderPiano(); } };
 
