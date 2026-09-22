@@ -245,18 +245,24 @@
   }
   .pv-titlerow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
   .pv-title { font-family: Georgia, "Iowan Old Style", serif; font-size: 19px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pv-strip { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .pv-strip { display: flex; gap: clamp(14px, 2vw, 24px); overflow-x: auto; padding: 4px 4px 6px; -webkit-overflow-scrolling: touch; }
   .pv-card {
-    flex: none; width: 190px; background: var(--card-2); border: 2px solid transparent;
-    border-radius: 15px; padding: 14px; cursor: pointer; text-align: center;
+    flex: 1 1 220px; min-width: 170px; max-width: 340px;
+    background: var(--card-2); border: 2px solid transparent;
+    border-radius: 16px; padding: clamp(14px, 1.6vw, 22px); cursor: pointer; text-align: center;
   }
   .pv-card.active { border-color: var(--teal); background: rgba(45,212,191,.14); }
-  .pv-card .pv-label { margin-top: 10px; font-size: 22px; font-weight: 700; }
-  .pv-card .pv-numeral { color: var(--muted); font-size: 13.5px; font-family: Georgia, serif; }
-  .mini-piano { position: relative; height: 108px; border-radius: 8px; overflow: hidden; background: linear-gradient(#2b3140, #171c26); }
-  .mini-piano .key { padding-bottom: 0; }
+  .pv-card .pv-label { margin-top: 12px; font-size: clamp(20px, 2.4vw, 30px); font-weight: 700; }
+  .pv-card .pv-numeral { color: var(--muted); font-size: 14px; font-family: Georgia, serif; }
+  .mini-piano { position: relative; height: clamp(110px, 15vw, 190px); border-radius: 9px; overflow: hidden; background: linear-gradient(#2b3140, #171c26); }
+  .mini-piano .key { padding-bottom: 6px; display: flex; align-items: flex-end; justify-content: center; }
   .mini-piano .key.white { border-radius: 0 0 3px 3px; }
   .mini-piano .key.black { border-radius: 0 0 3px 3px; }
+  .mini-piano .key .lbl { font-size: clamp(10px, 1.1vw, 14px); font-weight: 800; letter-spacing: .2px; }
+  .mini-piano .key.on { box-shadow: inset 0 0 0 2px rgba(255,255,255,.55); }
+  .pv-legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .pv-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+  .pv-notes { margin-top: 11px; color: var(--muted); font-size: clamp(12.5px, 1.3vw, 15px); }
   .pv-sheet {
     flex: 1; min-height: 0; overflow: auto; padding: 16px 16px max(16px, env(safe-area-inset-bottom));
     font: clamp(14px, 2.6vw, 17px)/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -418,6 +424,10 @@ Chorus: Cmaj7 - Dm7 - G7 - C
         <button class="btn tiny" id="pvClose">Close</button>
       </div>
       <div class="pv-strip" id="pvStrip"></div>
+      <div class="pv-legend">
+        <span><i style="background:linear-gradient(#ffc776,#f19a24)"></i>root &mdash; press this</span>
+        <span><i style="background:linear-gradient(#5ff0dc,#24c6b2)"></i>also press this</span>
+      </div>
     </div>
     <div class="pv-sheet" id="pvSheet"></div>
   </div>
@@ -1035,7 +1045,7 @@ function miniPiano(chord) {
   div.className = 'mini-piano';
   const tones = TYPES[chord.type].iv.map(i => i % 12);
   const keys = [];
-  for (let i = 0; i <= 12; i++) keys.push({ sem: i, pitch: mod12(chord.root + i), black: SHARP[mod12(chord.root + i)].includes('#') });
+  for (let i = 0; i < 12; i++) keys.push({ sem: i, pitch: mod12(chord.root + i), black: SHARP[mod12(chord.root + i)].includes('#') });
   const wW = 100 / keys.filter(k => !k.black).length, bW = wW * 0.62;
   let whiteIdx = 0;
   keys.forEach(k => {
@@ -1045,10 +1055,20 @@ function miniPiano(chord) {
     el.className = 'key ' + (k.black ? 'black' : 'white') + (isTone ? ' on' : '') + (isTone && rel === 0 ? ' is-root' : '');
     el.style.width = (k.black ? bW : wW) + '%';
     el.style.left = (k.black ? whiteIdx * wW - bW / 2 : whiteIdx * wW) + '%';
+    if (isTone) {
+      const lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = noteName(k.pitch, chord.flat);
+      el.appendChild(lbl);
+    }
     div.appendChild(el);
     if (!k.black) whiteIdx++;
   });
   return div;
+}
+
+function chordNoteList(chord) {
+  return TYPES[chord.type].iv.map(iv => noteName(chord.root + iv, chord.flat)).join(' · ');
 }
 
 function renderPlayStrip() {
@@ -1070,6 +1090,10 @@ function renderPlayStrip() {
     numeral.textContent = romanFor(c, key);
     label.appendChild(numeral);
     card.appendChild(label);
+    const notes = document.createElement('div');
+    notes.className = 'pv-notes';
+    notes.textContent = chordNoteList(c);
+    card.appendChild(notes);
     card.onclick = () => {
       stopProgression();
       const at = flat.findIndex(x => x.display === c.display);
