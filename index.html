@@ -229,6 +229,43 @@
   .saved-note { color: var(--teal); font-size: 14px; }
   footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 30px; }
 
+  .playview {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; flex-direction: column;
+    background:
+      radial-gradient(1100px 620px at 12% -8%, #1d2a3d 0%, transparent 60%),
+      radial-gradient(900px 500px at 96% 4%, #26203a 0%, transparent 55%),
+      linear-gradient(170deg, var(--bg1), var(--bg2));
+    height: 100vh; height: 100dvh;
+  }
+  .pv-top {
+    flex: none; border-bottom: 1px solid var(--line);
+    padding: max(14px, env(safe-area-inset-top)) 16px 12px;
+  }
+  .pv-titlerow { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .pv-title { font-family: Georgia, "Iowan Old Style", serif; font-size: 19px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .pv-card {
+    flex: none; width: 118px; background: var(--card-2); border: 2px solid transparent;
+    border-radius: 13px; padding: 8px; cursor: pointer; text-align: center;
+  }
+  .pv-card.active { border-color: var(--teal); background: rgba(45,212,191,.14); }
+  .pv-card .pv-label { margin-top: 7px; font-size: 15px; font-weight: 700; }
+  .pv-card .pv-numeral { color: var(--muted); font-size: 11.5px; font-family: Georgia, serif; }
+  .mini-piano { position: relative; height: 58px; border-radius: 6px; overflow: hidden; background: linear-gradient(#2b3140, #171c26); }
+  .mini-piano .key { padding-bottom: 0; }
+  .mini-piano .key.white { border-radius: 0 0 3px 3px; }
+  .mini-piano .key.black { border-radius: 0 0 3px 3px; }
+  .pv-sheet {
+    flex: 1; min-height: 0; overflow: auto; padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+    font: clamp(14px, 2.6vw, 17px)/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .pv-sheet .ln { min-height: 1.3em; white-space: pre; }
+  .pv-sheet .hd { color: var(--muted); font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin: 16px 0 4px; font-family: inherit; }
+  .pv-sheet .crow { color: var(--teal); font-weight: 700; }
+  .pv-sheet .lrow { margin-bottom: 11px; color: #c9d3e2; }
+  .pv-sheet .inline-chord.on { background: var(--teal); color: #04302a; }
+
   @media (max-width: 900px) {
     .grid { grid-template-columns: minmax(0,1fr); }
     .chord-name { font-size: 40px; }
@@ -327,7 +364,8 @@ Chorus: Cmaj7 - Dm7 - G7 - C
       <div class="chips" id="chips"></div>
       <div class="sheet" id="sheet" hidden></div>
       <div class="controls" style="margin-top:14px">
-        <button class="btn primary" id="saveBtn">Save to library</button>
+        <button class="btn primary" id="pvOpen">Play View</button>
+        <button class="btn" id="saveBtn">Save to library</button>
         <button class="btn" id="newBtn">New song</button>
         <span class="saved-note" id="saveState"></span>
       </div>
@@ -370,6 +408,18 @@ Chorus: Cmaj7 - Dm7 - G7 - C
     </ol>
     <p class="muted tiny">On a computer: space plays the current chord, left and right arrows step through the song, up and down change inversion.</p>
   </details>
+
+  <div class="playview" id="playview" hidden>
+    <div class="pv-top">
+      <div class="pv-titlerow">
+        <div class="pv-title" id="pvTitle">Untitled</div>
+        <button class="btn tiny" id="pvPlayProg">Play progression</button>
+        <button class="btn tiny" id="pvClose">Close</button>
+      </div>
+      <div class="pv-strip" id="pvStrip"></div>
+    </div>
+    <div class="pv-sheet" id="pvSheet"></div>
+  </div>
 
   <footer>Runs entirely in your browser &middot; songs stay on this device &middot; on iPad, use Share &rarr; Add to Home Screen for a full-screen app</footer>
 </div>
@@ -837,8 +887,10 @@ function renderChord() {
 
   document.querySelectorAll('#chips .chip').forEach(c =>
     c.classList.toggle('active', +c.dataset.idx === currentIdx));
-  document.querySelectorAll('#sheet .inline-chord').forEach(b =>
+  document.querySelectorAll('#sheet .inline-chord, #pvSheet .inline-chord').forEach(b =>
     b.classList.toggle('on', b.textContent === current.display));
+  document.querySelectorAll('#pvStrip .pv-card').forEach(c =>
+    c.classList.toggle('active', c.dataset.chord === current.display));
   renderPiano();
 }
 
@@ -884,6 +936,7 @@ function renderChips() {
     ? uniq + ' chord' + (uniq > 1 ? 's' : '') + (named ? ' · ' + shownSections.length + ' sections' : '') + ' · tap to see the keys'
     : 'paste chords to begin';
   $('progBtn').disabled = !flat.length;
+  $('pvOpen').disabled = !flat.length;
 }
 
 function sheetChord(written) {
@@ -907,7 +960,7 @@ function chordButton(written) {
   return b;
 }
 
-function renderSheet() {
+function buildSheetFragment() {
   const frag = document.createDocumentFragment();
 
   songText($('input').value).split(/\r?\n/).forEach(raw => {
@@ -969,7 +1022,87 @@ function renderSheet() {
     }
   });
 
-  $('sheet').replaceChildren(frag);
+  return frag;
+}
+
+function renderSheet() { $('sheet').replaceChildren(buildSheetFragment()); }
+
+/* ---------------------------- play view ---------------------------- */
+function miniPiano(chord) {
+  const div = document.createElement('div');
+  div.className = 'mini-piano';
+  const tones = TYPES[chord.type].iv.map(i => i % 12);
+  const keys = [];
+  for (let i = 0; i <= 12; i++) keys.push({ sem: i, pitch: mod12(chord.root + i), black: SHARP[mod12(chord.root + i)].includes('#') });
+  const wW = 100 / keys.filter(k => !k.black).length, bW = wW * 0.62;
+  let whiteIdx = 0;
+  keys.forEach(k => {
+    const rel = k.sem % 12;
+    const isTone = tones.includes(rel);
+    const el = document.createElement('div');
+    el.className = 'key ' + (k.black ? 'black' : 'white') + (isTone ? ' on' : '') + (isTone && rel === 0 ? ' is-root' : '');
+    el.style.width = (k.black ? bW : wW) + '%';
+    el.style.left = (k.black ? whiteIdx * wW - bW / 2 : whiteIdx * wW) + '%';
+    div.appendChild(el);
+    if (!k.black) whiteIdx++;
+  });
+  return div;
+}
+
+function renderPlayStrip() {
+  const key = activeKey();
+  const seen = new Set();
+  const frag = document.createDocumentFragment();
+  flat.forEach(c => {
+    if (seen.has(c.display)) return;
+    seen.add(c.display);
+    const card = document.createElement('div');
+    card.className = 'pv-card' + (c.display === current.display ? ' active' : '');
+    card.dataset.chord = c.display;
+    card.appendChild(miniPiano(c));
+    const label = document.createElement('div');
+    label.className = 'pv-label';
+    label.textContent = c.display;
+    const numeral = document.createElement('div');
+    numeral.className = 'pv-numeral';
+    numeral.textContent = romanFor(c, key);
+    label.appendChild(numeral);
+    card.appendChild(label);
+    card.onclick = () => {
+      stopProgression();
+      const at = flat.findIndex(x => x.display === c.display);
+      if (at > -1) setIndex(at);
+      playCurrent();
+    };
+    frag.appendChild(card);
+  });
+  $('pvStrip').replaceChildren(frag);
+}
+
+function renderPlayViewSheet() { $('pvSheet').replaceChildren(buildSheetFragment()); }
+
+let scrollLockY = 0;
+function lockBodyScroll() {
+  scrollLockY = window.scrollY;
+  Object.assign(document.body.style, { position: 'fixed', top: -scrollLockY + 'px', left: '0', right: '0', overflow: 'hidden' });
+}
+function unlockBodyScroll() {
+  Object.assign(document.body.style, { position: '', top: '', left: '', right: '', overflow: '' });
+  window.scrollTo(0, scrollLockY);
+}
+
+function openPlayView() {
+  if (!flat.length) return;
+  $('pvTitle').textContent = $('title').value.trim() || 'Untitled';
+  renderPlayStrip();
+  renderPlayViewSheet();
+  $('playview').hidden = false;
+  lockBodyScroll();
+}
+function closePlayView() {
+  stopProgression();
+  $('playview').hidden = true;
+  unlockBodyScroll();
 }
 
 function renderKeyControls() {
@@ -1117,12 +1250,14 @@ function stopProgression() {
   clearTimeout(progTimer);
   progTimer = null;
   $('progBtn').classList.remove('playing');
+  $('pvPlayProg').classList.remove('playing');
 }
 function playRange(start, end) {
   if (progTimer) stopProgression();
   if (!flat.length) return;
   ensureAudio();
   $('progBtn').classList.add('playing');
+  $('pvPlayProg').classList.add('playing');
   let i = start;
   const step = () => {
     setIndex(i);
@@ -1378,6 +1513,9 @@ $('typeSel').onchange = fromSelectors;
 $('input').oninput = () => refreshSong(!flat.length);
 $('playBtn').onclick = playCurrent;
 $('progBtn').onclick = playProgression;
+$('pvOpen').onclick = openPlayView;
+$('pvClose').onclick = closePlayView;
+$('pvPlayProg').onclick = playProgression;
 $('saveBtn').onclick = saveSong;
 $('newBtn').onclick = newSong;
 $('fingerToggle').onchange = renderPiano;
