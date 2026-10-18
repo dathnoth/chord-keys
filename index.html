@@ -117,7 +117,9 @@
   /* ---------- edit ---------- */
   .edit-main { max-width: 860px; margin: 0 auto; padding: 6px var(--pad-r) 50px var(--pad-l); }
   .field { display: block; margin-bottom: 18px; }
-  .field > span { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+  .field > span, .field-head > label { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+  .field-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .field-head > label { margin-bottom: 0; }
   input[type=text], textarea {
     width: 100%; background: rgba(9,12,18,.5); color: var(--text); border: 1px solid var(--line);
     border-radius: 13px; padding: 12px 14px; font-size: 16px; font-family: inherit;
@@ -258,6 +260,10 @@
   .modal-card p { margin: 0 0 14px; color: #c9d3e2; }
   .modal-card a { color: var(--teal); }
   .modal-card .row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+  .modal-card h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 700; margin: 18px 0 6px; }
+  .modal-card ol { margin: 0 0 4px; padding-left: 22px; color: #c9d3e2; }
+  .modal-card li { margin: 5px 0; }
+  .modal-card .bm { color: var(--teal); font-weight: 700; }
   .toggle { display: flex; align-items: center; gap: 12px; min-height: var(--tap); cursor: pointer; padding: 4px 0; }
   .toggle input { width: 22px; height: 22px; accent-color: var(--teal); flex: none; }
   .toast {
@@ -322,14 +328,15 @@
     <label class="field"><span>Song title</span>
       <input type="text" id="title" placeholder="e.g. Let It Be" autocomplete="off">
     </label>
-    <label class="field"><span>Chords</span>
+    <div class="field">
+      <div class="field-head"><label for="input">Chords</label><button class="btn" id="pasteBtn">Paste</button></div>
       <textarea id="input" spellcheck="false" placeholder="Paste the chords here. Any format works, for example:
 
 Verse:  C  G  Am  F
 Chorus: Am  G  F  C
 
 or a whole page copied from a chord website, lyrics and all."></textarea>
-    </label>
+    </div>
     <p class="found" id="found"></p>
     <button class="btn danger" id="deleteBtn">Delete this song</button>
   </main>
@@ -388,6 +395,19 @@ or a whole page copied from a chord website, lyrics and all."></textarea>
     <div class="row">
       <button class="btn" id="midiRetry">Look again</button>
       <button class="btn primary" id="midiClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Grab chords sheet ============ -->
+<div class="modal" id="grabSheet" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="grabTitle">
+    <h2 id="grabTitle">Songs from Chordify</h2>
+    <p>Chordify won&rsquo;t let you copy its chords, so a <b>Grab chords</b> bookmark reads them off the page for you.</p>
+    <div id="grabSteps"></div>
+    <div class="row">
+      <button class="btn" id="grabCopy">Copy the bookmark</button>
+      <button class="btn primary" id="grabClose">Done</button>
     </div>
   </div>
 </div>
@@ -460,7 +480,7 @@ function parseChord(token) {
   if (slash) { bassName = slash[1]; rest = rest.slice(0, slash.index); }
   const hit = SUFFIXES.find(([written]) => written === rest);
   if (!hit) return null;
-  return makeChord(PITCH[m[1] + m[2]], hit[1], bassName ? PITCH[bassName] : null, m[2] === 'b');
+  return makeChord(PITCH[m[1] + m[2]], hit[1], bassName ? PITCH[bassName] : null, m[2] === 'b' || /b$/.test(bassName || ''));
 }
 
 const chordTones = chord => TYPES[chord.type].iv.map(i => mod12(chord.root + i));
@@ -696,6 +716,7 @@ const uniqueNames = chords => [...new Set(chords.map(c => c.display))];
 /* ---------------------------- storage ---------------------------- */
 const $ = id => document.getElementById(id);
 const KEY_SONGS = 'chordKeys.songs', KEY_SETTINGS = 'chordKeys.settings';
+const KEY_SHARED = 'chordKeys.shared', KEY_HIDDEN = 'chordKeys.hidden';
 function load(key, fallback) {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
 }
@@ -704,6 +725,36 @@ function store(key, value) {
   catch (e) { toast('This browser is blocking storage, so changes will not last. Use Back up songs to keep a copy.'); }
 }
 let songs = load(KEY_SONGS, []);
+
+// songs.json ships with the app, so every browser (laptop, Safari, MIDIWeb Browser) sees
+// the same songs. It uses the Back up songs format. Songs saved in this browser come first
+// and win over a file song with the same id; deleting a file song only hides it here.
+let shared = load(KEY_SHARED, []);              // the last copy of songs.json, for offline use
+let hidden = load(KEY_HIDDEN, []);
+const songKey = s => (s.title || '') + '|' + (s.text || '');
+
+function allSongs() {
+  const ids = new Set(songs.map(s => s.id)), keys = new Set(songs.map(songKey));
+  return songs.concat(shared.filter(s => !ids.has(s.id) && !keys.has(songKey(s)) && !hidden.includes(s.id)));
+}
+const findSong = id => allSongs().find(s => s.id === id);
+
+async function loadShared() {
+  let data;
+  try {
+    const res = await fetch('songs.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    data = await res.json();
+  } catch (e) { return; }
+  const list = (Array.isArray(data) ? data : data.songs || []).filter(s => s && s.text).map(s => ({
+    id: s.id || 'f-' + String(s.title || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    title: s.title || 'Untitled', text: s.text, transpose: s.transpose || 0, key: s.key || null,
+  }));
+  if (JSON.stringify(list) === JSON.stringify(shared)) return;
+  shared = list;
+  store(KEY_SHARED, shared);
+  if (view === 'home') renderSongs();
+}
 const settings = Object.assign({ follow: true, soundOut: false, midi: false }, load(KEY_SETTINGS, {}));
 const saveSettings = () => store(KEY_SETTINGS, settings);
 
@@ -730,6 +781,7 @@ function show(name) {
 
 // #play/<id>, #edit/<id> and #new, so reloading or swiping back lands somewhere sensible
 function route() {
+  takeImport();                 // #import=... from the Grab chords bookmark becomes #new
   const h = location.hash.slice(1);
   let m;
   if ((m = /^play\/(.+)$/.exec(h))) return openPlay(m[1]);
@@ -749,8 +801,9 @@ function openHome() {
 }
 
 function renderSongs() {
+  const list = allSongs();
   const frag = document.createDocumentFragment();
-  songs.forEach(s => {
+  list.forEach(s => {
     const card = document.createElement('button');
     card.className = 'song-card';
     const title = document.createElement('b');
@@ -763,9 +816,9 @@ function renderSongs() {
     frag.appendChild(card);
   });
   $('songGrid').replaceChildren(frag);
-  $('emptyState').hidden = songs.length > 0;
-  $('homeHead').hidden = !songs.length;
-  $('exportBtn').disabled = !songs.length;
+  $('emptyState').hidden = list.length > 0;
+  $('homeHead').hidden = !list.length;
+  $('exportBtn').disabled = !list.length;
 }
 
 /* ---------------------------- add / edit ---------------------------- */
@@ -775,7 +828,7 @@ let editStart = '';       // what the form held when it opened, to tell whether 
 let draft = null;         // chords arriving from the Grab chords bookmarklet, waiting to be saved
 
 function openEdit(id) {
-  const saved = songs.find(s => s.id === id);
+  const saved = findSong(id);
   const src = saved || (id === 'example' ? EXAMPLE : draft) || { title: '', text: '' };
   draft = null;
   editingId = saved ? saved.id : null;
@@ -797,10 +850,11 @@ function renderFound() {
     found.innerHTML = 'Found <b></b> chord' + (names.length > 1 ? 's' : '') + ': <span></span>';
     found.querySelector('b').textContent = names.length;
     found.querySelector('span').textContent = names.slice(0, 14).join(' · ') + (names.length > 14 ? ' …' : '');
+  } else if ($('input').value.trim()) {
+    found.textContent = 'No chords found yet. Chord names like C, G, Am or F7 can sit on their own lines or in [brackets] inside the words.';
   } else {
-    found.textContent = $('input').value.trim()
-      ? 'No chords found yet. Chord names like C, G, Am or F7 can sit on their own lines or in [brackets] inside the words.'
-      : '';
+    found.innerHTML = 'Song on Chordify? Its chords can&rsquo;t be copied. <button class="link" id="grabHow">Here&rsquo;s how to grab them</button>';
+    $('grabHow').onclick = openGrabSheet;
   }
   $('saveBtn').disabled = !names.length;
 }
@@ -814,11 +868,36 @@ function saveSong() {
   if (song) {
     Object.assign(song, { title, text, chords, updated: Date.now() });
   } else {
-    song = { id: 's' + Date.now().toString(36), title, text, chords, transpose: 0, key: null, updated: Date.now() };
+    const file = shared.find(s => s.id === editingId);   // editing a file song keeps your version here
+    song = { id: editingId || 's' + Date.now().toString(36), title, text, chords,
+      transpose: file ? file.transpose : 0, key: file ? file.key : null, updated: Date.now() };
     songs.unshift(song);
   }
   store(KEY_SONGS, songs);
   go('play/' + song.id);
+}
+
+// The Grab chords bookmark copies "# Title" followed by the chords
+function splitTitle(text) {
+  const lines = String(text).replace(/^\s+/, '').split('\n');
+  const title = lines[0].startsWith('# ') ? lines.shift().slice(2).trim() : '';
+  return { title, text: lines.join('\n').trim() };
+}
+
+function pasteIn(clip) {
+  const { title, text } = splitTitle(clip);
+  if (title && !$('title').value.trim()) $('title').value = title;
+  const box = $('input'), at = box.selectionStart, before = box.value.slice(0, at);
+  box.setRangeText((before && !before.endsWith('\n') ? '\n' : '') + text, at, box.selectionEnd, 'end');
+  renderFound();
+}
+
+async function pasteChords() {
+  let clip = null;
+  try { clip = await navigator.clipboard.readText(); } catch (e) {}
+  if (clip === null) { $('input').focus(); return toast('Tap and hold in the box, then tap Paste.'); }
+  if (!clip.trim()) return toast('Nothing has been copied yet.');
+  pasteIn(clip);
 }
 
 function leaveEdit() {
@@ -828,10 +907,11 @@ function leaveEdit() {
 }
 
 function deleteSong() {
-  const song = songs.find(s => s.id === editingId);
+  const song = findSong(editingId);
   if (!song || !confirm('Delete “' + (song.title || 'Untitled') + '”?')) return;
   songs = songs.filter(s => s.id !== song.id);
   store(KEY_SONGS, songs);
+  if (shared.some(s => s.id === song.id)) { hidden.push(song.id); store(KEY_HIDDEN, hidden); }
   go('');
 }
 
@@ -843,7 +923,7 @@ let idx = 0;
 let finished = false;
 
 function openPlay(id) {
-  const song = id === 'example' ? EXAMPLE : songs.find(s => s.id === id);
+  const song = id === 'example' ? EXAMPLE : findSong(id);
   if (!song) return go('');
   ({ chords: seq, sections } = chordSequence(song));
   if (playingId !== id) idx = 0;            // coming back from Edit keeps your place
@@ -1290,7 +1370,7 @@ function closeMidiSheet() { $('midiSheet').hidden = true; }
 
 /* ---------------------------- backup ---------------------------- */
 function exportLibrary() {
-  const blob = new Blob([JSON.stringify({ songs }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ songs: allSongs() }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'chord-keys-songs.json';
@@ -1304,7 +1384,7 @@ function importLibrary(file) {
     try {
       const data = JSON.parse(reader.result);
       const incoming = Array.isArray(data) ? data : (data.songs || []);
-      const seen = new Set(songs.map(s => (s.title || '') + '|' + (s.text || '')));
+      const seen = new Set(allSongs().map(songKey));
       let added = 0;
       incoming.forEach(s => {
         if (!s || !s.text || seen.has((s.title || '') + '|' + s.text)) return;
@@ -1324,15 +1404,165 @@ function importLibrary(file) {
   reader.readAsText(file);
 }
 
-/* -------- chords sent here by a Grab chords bookmarklet made with an earlier version -------- */
+/* ---------------------------- Grab chords bookmark ---------------------------- */
+// Runs on the chord page itself, so it has to stand alone. Chordify blocks copying, but its
+// grid holds one cell per beat; other sites fall back to reading the page's text.
+// Where the browser can use a keyboard (Chrome, MIDIWeb Browser) the song opens straight in
+// Chord Keys. Safari can't, so there it offers to copy the chords for pasting in MIDIWeb Browser.
+function grabChords(APP) {
+  var clean = function (t) {
+    return (t || '').normalize('NFKC').replace(/♭/g, 'b').replace(/♯/g, '#').replace(/♮/g, '').trim();
+  };
+  var lines = [], count = 0, title = '';
+
+  var grid = null, most = 0;
+  document.querySelectorAll('.chords').forEach(function (g) {
+    var n = g.querySelectorAll('.chord[data-handle]').length;
+    if (n > most) { most = n; grid = g; }
+  });
+  if (grid) {                                               // Chordify: a row of the grid is four bars
+    var cells = grid.querySelectorAll('.chord');
+    var row = (+((/barlength-(\d+)/.exec(grid.className) || [])[1]) || 4) * 4;
+    var line = [], last = '';
+    for (var i = 0; i < cells.length; i++) {
+      var name = clean(cells[i].textContent);
+      if (/^[A-G]/.test(name) && name !== last) { line.push(name); last = name; count++; }
+      if ((i + 1) % row === 0 || i === cells.length - 1) { if (line.length) lines.push(line.join('  ')); line = []; }
+    }
+    var h1 = document.querySelector('h1');
+    title = h1 ? clean(h1.textContent).replace(/\s+chords(\s+by\s+.*)?$/i, '') : '';
+  } else {
+    var SEC = /^(pre[\s-]?chorus|chorus|verse|intro|outro|bridge|solo|interlude|refrain|instrumental|break|hook|coda|tag|ending|riff)\b/i;
+    var CH = /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|M)?[0-9]*(sus[24]|add[0-9]+|maj[0-9]+|b5|#5)?(\/[A-G][#b]?)?$/;
+    var vocab = {}, vocabList = [], marked = document.querySelectorAll('[class*="chord" i], [data-chord]');
+    for (var j = 0; j < marked.length; j++) {               // what this page calls a chord
+      var t = clean(marked[j].textContent);
+      if (CH.test(t) && !vocab[t]) { vocab[t] = 1; vocabList.push(t); }
+    }
+    var known = vocabList.length > 0, prev = '', headed = false;
+    var root = document.querySelector('main, article') || document.body;
+    clean(root.innerText).split('\n').forEach(function (raw) {
+      var l = raw.trim();
+      if (!l) return;
+      if (l.length < 30 && SEC.test(l) && l.split(/\s+/).length < 4) { lines.push('', l.toUpperCase()); prev = ''; headed = true; return; }
+      var tokens = l.split(/[\s|,;:]+/).filter(Boolean);
+      var hits = tokens.filter(function (x) { return CH.test(x); });
+      if (hits.length / tokens.length < 0.5) hits = hits.filter(function (x) { return x.length > 1; });
+      hits.forEach(function (h) {
+        if (h.length === 1 && known && !vocab[h]) return;   // "F" starting a lyric word is not a chord here
+        if (h !== prev) { lines.push(h); prev = h; count++; }
+      });
+    });
+    if (count < 3 && known) { lines = vocabList; count = vocabList.length; headed = false; }   // page hides its lyrics
+    if (headed) lines = lines.slice(lines.findIndex(function (x) { return SEC.test(x); }));
+    title = (document.title || '').split(/\s+[|–-]\s+/)[0].trim();
+  }
+
+  var text = '# ' + (title || 'Untitled') + '\n' + lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  var canOpen = /^https?:/.test(APP);
+  var open = function () { location.href = APP + '#import=' + encodeURIComponent(text.slice(0, 20000)); };
+  if (count && canOpen && navigator.requestMIDIAccess) return open();
+
+  var el = function (tag, css, label) {
+    var e = document.createElement(tag);
+    e.style.cssText = css;
+    if (label) e.textContent = label;
+    return e;
+  };
+  var BTN = 'font:600 16px/1.2 -apple-system,system-ui,sans-serif;min-height:44px;padding:10px 16px;margin:14px 8px 0 0;'
+    + 'border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#e9eef6;cursor:pointer';
+  var gone = document.getElementById('chord-keys-grab');
+  if (gone) gone.remove();
+  var box = el('div', 'position:fixed;z-index:2147483647;top:16px;left:50%;transform:translateX(-50%);box-sizing:border-box;'
+    + 'width:min(460px,calc(100% - 24px));padding:20px 20px 18px;border-radius:18px;background:#1a202b;color:#e9eef6;'
+    + 'font:16px/1.45 -apple-system,system-ui,sans-serif;text-align:left;box-shadow:0 18px 40px rgba(0,0,0,.5)');
+  box.id = 'chord-keys-grab';
+  var msg = el('div', 'color:#c9d3e2', count
+    ? count + ' chords. Copy them, then paste them into Chord Keys in MIDIWeb Browser.'
+    : 'No chords found on this page.');
+  box.append(el('div', 'font:700 19px/1.3 -apple-system,system-ui,sans-serif;margin-bottom:6px', title || 'Chord Keys'), msg);
+
+  if (count) {
+    var copy = el('button', BTN + ';background:#2dd4bf;color:#04302a;border-color:transparent', 'Copy chords');
+    copy.onclick = function () {
+      var done = function () {
+        copy.textContent = 'Copied';
+        msg.textContent = 'Copied. Now open Chord Keys in MIDIWeb Browser, tap New song, then Paste.';
+      };
+      var manual = function () {                            // no clipboard access: let them copy it by hand
+        var ta = el('textarea', 'display:block;box-sizing:border-box;width:100%;height:120px;margin-top:12px;font:16px monospace;color:#111;background:#fff');
+        ta.value = text;
+        copy.replaceWith(ta);
+        ta.focus();
+        ta.select();
+        msg.textContent = 'Tap and hold the text below, choose Select All, then Copy.';
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, manual);
+      else manual();
+    };
+    box.append(copy);
+    if (canOpen) {
+      var here = el('button', BTN, 'Open here');
+      here.onclick = open;
+      box.append(here);
+    }
+  }
+  var close = el('button', BTN, 'Close');
+  close.onclick = function () { box.remove(); };
+  box.append(close);
+  document.body.appendChild(box);
+}
+
+const bookmarkletCode = () => 'javascript:' + encodeURIComponent(
+  '(' + grabChords.toString().replace(/^\s+/gm, '') + ')(' + JSON.stringify(location.origin + location.pathname) + ')');
+
+function openGrabSheet() {
+  const steps = onIPad
+    ? '<h3>Set it up once, in Safari</h3><ol>'
+      + '<li>Tap <b>Copy the bookmark</b> below.</li>'
+      + '<li>In Safari, bookmark any page (tap Share, then Add Bookmark) and name it <b>Grab chords</b>.</li>'
+      + '<li>Open your bookmarks, tap Edit, tap <b>Grab chords</b>, and replace its address with what you copied.</li></ol>'
+      + '<h3>Then for each song</h3><ol>'
+      + '<li>Open the song on Chordify in Safari, then tap <b>Grab chords</b> in your bookmarks.</li>'
+      + '<li>Tap <b>Copy chords</b>.</li>'
+      + '<li>Come to Chord Keys in MIDIWeb Browser, tap New song, then <b>Paste</b>.</li></ol>'
+    : '<ol><li>Drag this to your bookmarks bar: <a class="bm" id="grabLink">Grab chords</a></li>'
+      + '<li>Open a song on Chordify and click <b>Grab chords</b>.</li></ol>';
+  $('grabSteps').innerHTML = steps;
+  const link = $('grabLink');
+  if (link) {
+    link.href = bookmarkletCode();
+    link.onclick = e => { e.preventDefault(); toast('Drag it to your bookmarks bar'); };
+  }
+  $('grabSheet').hidden = false;
+}
+const closeGrabSheet = () => ($('grabSheet').hidden = true);
+
+async function copyBookmark() {
+  const code = bookmarkletCode();
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Copied. Now add it as a bookmark in Safari.');
+  } catch (e) {
+    $('grabSteps').querySelector('textarea')?.remove();
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    ta.readOnly = true;
+    ta.style.minHeight = '110px';
+    $('grabSteps').prepend(ta);
+    ta.focus();
+    ta.select();
+    toast('Tap and hold the text, choose Select All, then Copy.');
+  }
+}
+
+// chords sent here by the Grab chords bookmark
 function takeImport() {
   const m = /[#&]import=([^&]*)/.exec(location.hash);
   if (!m) return;
   let payload;
   try { payload = decodeURIComponent(m[1]); } catch (e) { return; }
-  const lines = payload.split('\n');
-  const title = lines[0].startsWith('# ') ? lines.shift().slice(2).trim() : '';
-  draft = { title, text: lines.join('\n').trim() };
+  draft = splitTitle(payload);
   history.replaceState(null, '', location.pathname + location.search + '#new');
 }
 
@@ -1345,6 +1575,13 @@ $('importBtn').onclick = () => $('fileInput').click();
 $('fileInput').onchange = e => { if (e.target.files[0]) importLibrary(e.target.files[0]); e.target.value = ''; };
 
 $('input').oninput = renderFound;
+$('input').addEventListener('paste', e => {
+  const clip = e.clipboardData && e.clipboardData.getData('text/plain');
+  if (!clip || !splitTitle(clip).title) return;          // an ordinary paste stays the browser's job
+  e.preventDefault();
+  pasteIn(clip);
+});
+$('pasteBtn').onclick = pasteChords;
 $('saveBtn').onclick = saveSong;
 $('editBack').onclick = leaveEdit;
 $('deleteBtn').onclick = deleteSong;
@@ -1362,6 +1599,9 @@ $('midiSheet').onclick = e => { if (e.target === $('midiSheet')) closeMidiSheet(
 $('midiRetry').onclick = () => (midi ? scanPorts() : (midiState = 'idle', connectMidi()));
 $('followToggle').onchange = e => { settings.follow = e.target.checked; saveSettings(); renderHint(); };
 $('soundOutToggle').onchange = e => { settings.soundOut = e.target.checked; saveSettings(); };
+$('grabCopy').onclick = copyBookmark;
+$('grabClose').onclick = closeGrabSheet;
+$('grabSheet').onclick = e => { if (e.target === $('grabSheet')) closeGrabSheet(); };
 
 /* touching or dragging across the on-screen keys sounds whatever is under each finger */
 const strokes = new Map();   // pointerId -> { el, voice }
@@ -1405,7 +1645,8 @@ $('piano').addEventListener('contextmenu', e => e.preventDefault());
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('midiSheet').hidden) return closeMidiSheet();
-  if (view !== 'play' || !$('midiSheet').hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === 'Escape' && !$('grabSheet').hidden) return closeGrabSheet();
+  if (view !== 'play' || !$('midiSheet').hidden ||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   if (e.code === 'Space') { e.preventDefault(); hear(); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); nextChord(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); prevChord(); }
@@ -1413,8 +1654,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('touchstart', () => ensureAudio(), { once: true, passive: true });
 window.addEventListener('hashchange', route);
 
-takeImport();
 route();
+loadShared();
 renderMidi();
 if (settings.midi && midiState === 'idle') connectMidi();   // reconnect if you connected before
 </script>
