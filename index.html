@@ -162,6 +162,12 @@
   .next-lab { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1.3px; font-weight: 700; }
   .next-name { font: 26px/1.1 Georgia, "Iowan Old Style", serif; }
   .next.last .next-name { font-size: 17px; color: var(--muted); }
+  .next-chord { display: flex; align-items: baseline; gap: 10px; }
+  .next-left {
+    border: 1px solid rgba(167,139,250,.6); border-radius: 8px; padding: 2px 8px;
+    color: #c9b6ff; font-size: 13px; font-weight: 700; white-space: nowrap;
+  }
+  .next.last .next-left { display: none; }
 
   .piano {
     position: relative; height: clamp(150px, 27vh, 250px);
@@ -361,7 +367,7 @@ or a whole page copied from a chord website, lyrics and all."></textarea>
           <div class="tones" id="tones"></div>
         </div>
         <div class="next" id="next">
-          <div class="next-head"><span class="next-lab">Next</span><span class="next-name" id="nextName"></span></div>
+          <div class="next-head"><span class="next-lab">Next</span><span class="next-chord"><span class="next-left" id="nextLeft"></span><span class="next-name" id="nextName"></span></span></div>
           <div class="piano mini" id="nextPiano"></div>
         </div>
       </div>
@@ -1012,6 +1018,7 @@ function renderPlay() {
   const next = seq[idx + 1];
   $('next').classList.toggle('last', !next);
   $('nextName').textContent = next ? next.display : 'Last chord';
+  $('nextLeft').textContent = next ? 'left ' + noteName(leftNote(next), next.flat) : '';
   $('nextPiano').hidden = !next;
   if (next) drawKeyboard($('nextPiano'), next, false);
 
