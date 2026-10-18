@@ -216,8 +216,8 @@
     content: ''; position: absolute; top: 14px; width: 14px; height: 14px; border-radius: 50%;
     background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,.28);
   }
-  .key.white.held:not(.on) { background: linear-gradient(#d3f7f0 76%, #a8e6dc); }   /* a right note, in another octave */
-  .key.black.held:not(.on) { background: linear-gradient(#40857b, #1d4a44 88%); }
+  .key.white.held:not(.on) { background: linear-gradient(#5ff0dc 76%, #24c6b2); border-color: #1fae9d; }   /* a right note, anywhere */
+  .key.black.held:not(.on) { background: linear-gradient(#34d8c4, #12a695 88%); border-color: #0c8879; }
   .key.white.held.carried:not(.on) { background: linear-gradient(#fdfefe 78%, #e7ebf1); }   /* still down from the last chord */
   .key.black.held.carried:not(.on) { background: linear-gradient(#3a4150, #14181f 85%); }
   .key.white.held.wrong { background: linear-gradient(#ffc0b5 76%, #ff8571); border-color: #e0604c; }
@@ -530,8 +530,12 @@ function detectKey(chords) {
 }
 
 /* ---------------------------- voicings ---------------------------- */
-const SPAN = 24;     // the on-screen keyboard: two octaves, C3 up to C5
-const LOW = 48;      // MIDI note number of its first key (C3); middle C is LOW + 12
+const SPAN = 24;     // where the right hand's chord sits: two octaves, C3 up to C5
+const LOW = 48;      // MIDI note number of C3; middle C is LOW + 12
+const LEFT = -12;    // the on-screen keyboard starts an octave lower, at C2, to show the left hand
+
+// The left hand plays the chord's root in octaves, or the bass note of a slash chord
+const leftNote = chord => (chord.bass === null ? chord.root : chord.bass);
 
 function candidates(chord) {
   const iv = TYPES[chord.type].iv, out = [];
@@ -939,21 +943,22 @@ function openPlay(id) {
 function drawKeyboard(el, chord, labels) {
   const voicing = chord.voicing || [];
   const tones = chordTones(chord);
-  const whiteW = 100 / 15, blackW = whiteW * 0.62;
+  const left = leftNote(chord);
+  const whiteW = 100 / ((SPAN - LEFT) / 12 * 7 + 1), blackW = whiteW * 0.62;
   const frag = document.createDocumentFragment();
   let whiteIdx = 0;
-  for (let s = 0; s <= SPAN; s++) {
-    const pc = s % 12, black = SHARP[pc].length > 1;
+  for (let s = LEFT; s <= SPAN; s++) {
+    const pc = mod12(s), black = SHARP[pc].length > 1;
     const inVoicing = voicing.includes(s);
     const isRoot = inVoicing && pc === chord.root;
-    const isBass = chord.bass !== null && s === chord.bass && !isRoot;   // left hand, in the lowest octave
+    const isBass = s === left - 12;                   // left hand, in the lowest octave
     const key = document.createElement('div');
     key.className = 'key ' + (black ? 'black' : 'white')
       + (inVoicing || isBass ? ' on' : '') + (isRoot ? ' is-root' : '') + (isBass ? ' is-bass' : '');
     key.style.width = (black ? blackW : whiteW) + '%';
     key.style.left = (black ? whiteIdx * whiteW - blackW / 2 : whiteIdx * whiteW) + '%';
     key.dataset.midi = LOW + s;
-    if (tones.includes(pc) || pc === chord.bass) key.dataset.tone = '1';
+    if (tones.includes(pc) || pc === left) key.dataset.tone = '1';
     if (labels) {
       const lbl = document.createElement('span');
       if (inVoicing || isBass) {
@@ -964,10 +969,10 @@ function drawKeyboard(el, chord, labels) {
         lbl.textContent = 'C';
       }
       if (lbl.textContent) key.appendChild(lbl);
-      if (s === 12) {
+      if (s === 12 || isBass) {
         const mid = document.createElement('span');
         mid.className = 'mid';
-        mid.textContent = 'middle';
+        mid.textContent = isBass ? 'left' : 'middle';
         key.appendChild(mid);
       }
     }
@@ -998,7 +1003,7 @@ function renderPlay() {
   $('chordName').textContent = chord.display;
 
   const tones = document.createDocumentFragment();
-  if (chord.bass !== null) tones.appendChild(toneChip(chord.bass, chord.flat, 'bass', 'left hand'));
+  tones.appendChild(toneChip(leftNote(chord), chord.flat, 'bass', 'left hand'));
   chordTones(chord).forEach((pc, i) => tones.appendChild(toneChip(pc, chord.flat, i === 0 ? 'root' : '', '')));
   $('tones').replaceChildren(tones);
 
@@ -1032,9 +1037,9 @@ function renderHint() {
   if (!chord) return;
   const listening = midiState === 'connected' && settings.follow;
   $('hint').textContent = (listening
-    ? 'Play these notes on your keyboard, in any octave, and it moves on by itself.'
+    ? 'Play the chord anywhere on your keyboard, in any order, and it moves on by itself.'
     : 'Press the coloured keys together.')
-    + (chord.bass !== null ? ' The purple key is for your left hand.' : '');
+    + ' Purple is your left hand, played in octaves.';
 }
 
 function renderMap() {
@@ -1082,6 +1087,8 @@ function markMap() {
 
 function setIdx(i) {
   if (!seq[i]) return;
+  const was = seq[idx];
+  leftover = { pcs: new Set(was ? [...chordTones(was), leftNote(was)] : []), until: performance.now() + 350 };
   idx = i;
   finished = false;
   carried = new Set(held);
@@ -1100,7 +1107,7 @@ function prevChord() {
 function hear() {
   const chord = seq[idx];
   if (!chord || finished) return;
-  const notes = chord.bass !== null ? [chord.bass - 12, ...chord.voicing] : chord.voicing;
+  const notes = [leftNote(chord) - 24, leftNote(chord) - 12, ...chord.voicing];   // left hand in octaves
   notes.forEach((s, i) => sound(LOW + s, i * 0.014, i === 0 ? 1 : 0.88, 1.8));
 }
 
@@ -1232,6 +1239,7 @@ let midiState = navigator.requestMIDIAccess ? 'idle' : 'unsupported';   // idle,
 let inputNames = [];
 const held = new Set();       // MIDI notes currently held down on the keyboard
 let carried = new Set();      // the ones already down when the chord changed: not judged until pressed again
+let leftover = { pcs: new Set(), until: 0 };   // the chord just left behind, for notes that land a moment late
 
 const onIPad = /iPad|iPhone|iPod/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1281,6 +1289,11 @@ function onMidiMessage(e) {
 function noteOn(note) {
   if (performance.now() - (sentAt.get(note) ?? -Infinity) < 400) return;
   held.add(note);
+  // the other hand landing just after the chord moved on still belongs to that chord
+  if (performance.now() < leftover.until && leftover.pcs.has(mod12(note))) {
+    carried.add(note);
+    return paintHeld();
+  }
   carried.delete(note);
   paintHeld();
   // only a fresh key press can complete a chord, so notes still held from the last one never skip ahead
@@ -1295,11 +1308,11 @@ function noteOff(note) {
   paintHeld();
 }
 
-// Any octave and any order counts. Big chords may leave out the 5th, as pianists do,
-// and the left-hand note of a slash chord is optional.
+// Any octave, any order and any spread across the keys counts, extra notes too. The 5th may
+// be left out, as pianists often do, and the left-hand note is optional.
 function playsChord(chord) {
   const iv = TYPES[chord.type].iv;
-  const needed = iv.filter(x => !(iv.length >= 5 && x === 7)).map(x => mod12(chord.root + x));
+  const needed = iv.filter(x => !(iv.length > 2 && x === 7)).map(x => mod12(chord.root + x));
   const pcs = new Set([...held].map(mod12));
   return needed.every(pc => pcs.has(pc));
 }
