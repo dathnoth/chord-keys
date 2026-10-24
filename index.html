@@ -309,23 +309,11 @@
     display: block; height: 100%; width: 0; border-radius: 99px; transition: width .3s ease;
     background: linear-gradient(90deg, #ff5d5d, #ffd60a, #3ddc84, #22b8f0, #a95ff0);
   }
-  .kid-words { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 14px 0; }
-  .kid-line { --b: clamp(42px, 6.2vw, 70px); display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 10px; }
-  .kb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: var(--b); }
-  .kdot {
-    width: var(--b); height: var(--b); border-radius: 50%; display: grid; place-items: center;
-    border: 3px solid var(--c); background: rgba(255,255,255,.04); color: var(--c);
-    font-size: calc(var(--b) * .45); font-weight: 800;
-  }
-  .ksyl { font-size: clamp(16px, 2vw, 22px); font-weight: 600; white-space: nowrap; min-height: 1.3em; }
-  .kb.past .kdot { background: var(--c); color: #141019; opacity: .4; }
-  .kb.past .ksyl { opacity: .4; }
-  .kb.now .kdot {
-    background: var(--c); color: #141019; transform: scale(1.22);
-    box-shadow: 0 0 0 5px rgba(255,255,255,.18), 0 8px 22px rgba(0,0,0,.4); animation: popin .35s ease-out;
-  }
-  .kb.now .ksyl { font-weight: 800; color: #fff; }
-  @keyframes popin { 0% { transform: scale(.8); } 70% { transform: scale(1.32); } 100% { transform: scale(1.22); } }
+  .kid-words { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px 0; }
+  .kid-staff { max-width: 100%; background: #fbfaf6; border-radius: 18px; padding: 6px 14px; box-shadow: var(--shadow); }
+  .kid-staff svg { display: block; height: clamp(140px, 27vh, 280px); max-width: 100%; font-family: var(--kid-font); }
+  .kid-staff .halo { animation: popin .35s ease-out; transform-box: fill-box; transform-origin: center; }
+  @keyframes popin { 0% { transform: scale(.5); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
   .kid-next { color: var(--muted); font-size: 16px; min-height: 1.5em; text-align: center; }
 
   .kid-piano {
@@ -333,7 +321,7 @@
     -webkit-user-select: none; user-select: none; touch-action: none; -webkit-touch-callout: none;
   }
   .kid-keys {
-    position: relative; height: clamp(170px, 32vh, 300px);
+    position: relative; height: clamp(160px, 29vh, 290px);
     border-radius: 10px 10px 16px 16px; padding-top: 9px;
     background: linear-gradient(#2b3140, #171c26);
     box-shadow: inset 0 3px 0 rgba(255,255,255,.07), 0 12px 26px rgba(0,0,0,.4);
@@ -387,9 +375,7 @@
   .pin.nudge { animation: nudge .4s ease; }
   @keyframes nudge { 25% { transform: translate(-50%, 0) rotate(-14deg); } 75% { transform: translate(-50%, 0) rotate(14deg); } }
 
-  .kid-hint { color: var(--muted); font-size: 15px; text-align: center; margin: 16px 0 12px; min-height: 1.5em; }
-  .kid-nav { flex: none; display: flex; justify-content: center; gap: 12px; }
-  .kid-nav .btn { min-width: 170px; }
+  .kid-hint { color: var(--muted); font-size: 15px; text-align: center; margin: 14px 0 0; min-height: 1.5em; }
   .kid-done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .kid-done h2 { font: 800 clamp(40px, 7vw, 72px)/1.1 var(--kid-font); }
   .kid-done p { color: var(--muted); font-size: 18px; margin: 8px 0 24px; }
@@ -400,7 +386,7 @@
   .kid-stars i:nth-child(3) { animation-delay: .3s; }
   @keyframes starin { from { transform: scale(0) rotate(-90deg); } }
   .kid-stage.finished .kid-words, .kid-stage.finished .kid-piano,
-  .kid-stage.finished .kid-hint, .kid-stage.finished .kid-nav { display: none; }
+  .kid-stage.finished .kid-hint { display: none; }
 
   .spark {
     position: fixed; z-index: 70; width: 18px; height: 18px; pointer-events: none;
@@ -543,20 +529,18 @@ or a whole page copied from a chord website, lyrics and all."></textarea>
   <header class="bar">
     <button class="btn quiet" id="kidBack"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Songs</button>
     <h1 id="kidTitle"></h1>
+    <button class="btn" id="kidListen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><span>Listen</span></button>
+    <button class="btn quiet" id="kidRestart">Start again</button>
     <button class="midi-pill"><i></i><span>Connect keyboard</span></button>
   </header>
   <main class="kid-stage" id="kidStage">
     <div class="kid-progress"><i id="kidBar"></i></div>
     <div class="kid-words">
-      <div class="kid-line" id="kidLine"></div>
+      <div class="kid-staff" id="kidStaff"></div>
       <div class="kid-next" id="kidNext"></div>
     </div>
     <div class="kid-piano"><div class="pin" id="kidPin"></div><div class="kid-keys" id="kidKeys"></div></div>
     <p class="kid-hint" id="kidHint"></p>
-    <div class="kid-nav">
-      <button class="btn big" id="kidListen"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><span>Listen</span></button>
-      <button class="btn big" id="kidRestart">Start again</button>
-    </div>
     <div class="kid-done" id="kidDone" hidden>
       <div class="kid-stars"><i></i><i></i><i></i></div>
       <h2>You did it!</h2>
@@ -1311,7 +1295,8 @@ function pulse() {
 /* ---------------------------- kid mode ---------------------------- */
 // Simple tunes played one note at a time. Each line is its notes, then its words with one
 // syllable per note. A note is a letter, an octave if it isn't the one starting at middle C
-// (C4), and a length in beats if it isn't one: "G3", "E:2", "C5:.5".
+// (C4), and a length in beats if it isn't one: "G3", "E:2", "C5:.5". A song is in 4/4 unless it
+// gives its beats to a bar (meter), a pickup before the first bar, and how many beats share a beam.
 const KID_SONGS = [
   { id: 'hot-cross-buns', title: 'Hot Cross Buns', beat: 0.5, lines: [
     ['E D C:2', 'Hot cross buns,'],
@@ -1343,19 +1328,19 @@ const KID_SONGS = [
     ['G G G D E E D:2', 'Old Mac-Don-ald had a farm,'],
     ['B B A A G:3', 'E-I-E-I-O.'],
     ['D G G G D E E D:2', 'And on his farm he had a cow,'],
-    ['B B A A G:3', 'E-I-E-I-O.'],
+    ['B B A A G:4', 'E-I-E-I-O.'],
   ] },
   { id: 'london-bridge', title: 'London Bridge', beat: 0.4, lines: [
     ['G:1.5 A:.5 G F E F G:2', 'Lon-don Bridge is fall-ing down,'],
     ['D E F:2 E F G:2', 'fall-ing down, fall-ing down.'],
     ['G:1.5 A:.5 G F E F G:2', 'Lon-don Bridge is fall-ing down,'],
-    ['D:2 G:2 E C:2', 'my fair la-dy.'],
+    ['D:2 G:2 E C:3', 'my fair la-dy.'],
   ] },
-  { id: 'row-your-boat', title: 'Row, Row, Row Your Boat', beat: 0.22, lines: [
-    ['C:3 C:3 C:2 D:1 E:3', 'Row, row, row your boat'],
-    ['E:2 D:1 E:2 F:1 G:6', 'gent-ly down the stream.'],
-    ['C5 C5 C5 G G G E E E C C C', 'Mer-ri-ly, mer-ri-ly, mer-ri-ly, mer-ri-ly,'],
-    ['G:2 F:1 E:2 D:1 C:6', 'life is but a dream.'],
+  { id: 'row-your-boat', title: 'Row, Row, Row Your Boat', beat: 0.44, meter: 3, beam: 1.5, lines: [
+    ['C:1.5 C:1.5 C D:.5 E:1.5', 'Row, row, row your boat'],
+    ['E D:.5 E F:.5 G:3', 'gent-ly down the stream.'],
+    ['C5:.5 C5:.5 C5:.5 G:.5 G:.5 G:.5 E:.5 E:.5 E:.5 C:.5 C:.5 C:.5', 'Mer-ri-ly, mer-ri-ly, mer-ri-ly, mer-ri-ly,'],
+    ['G F:.5 E D:.5 C:3', 'life is but a dream.'],
   ] },
   { id: 'jingle-bells', title: 'Jingle Bells', beat: 0.32, lines: [
     ['E E E:2 E E E:2', 'Jin-gle bells, jin-gle bells,'],
@@ -1367,11 +1352,11 @@ const KID_SONGS = [
     ['F F F:1.5 F:.5 F E E E:.5 E:.5', 'Oh what fun it is to ride in a'],
     ['G G F D C:4', 'one-horse o-pen sleigh!'],
   ] },
-  { id: 'happy-birthday', title: 'Happy Birthday', beat: 0.42, lines: [
+  { id: 'happy-birthday', title: 'Happy Birthday', beat: 0.42, meter: 3, pickup: 1, lines: [
     ['G3:.75 G3:.25 A3 G3 C B3:2', 'Hap-py birth-day to you,'],
     ['G3:.75 G3:.25 A3 G3 D C:2', 'hap-py birth-day to you,'],
-    ['G3:.75 G3:.25 G E C B3 A3:2', 'hap-py birth-day dear bud-dy,'],
-    ['F:.75 F:.25 E C D C:2', 'hap-py birth-day to you!'],
+    ['G3:.75 G3:.25 G E C B3 A3', 'hap-py birth-day dear bud-dy,'],
+    ['F:.75 F:.25 E C D C:3', 'hap-py birth-day to you!'],
   ] },
 ];
 
@@ -1382,13 +1367,17 @@ const isBlack = n => SHARP[mod12(n)].length > 1;
 
 function kidTune(song) {
   const notes = [], lines = [];
+  let pos = 0;
   song.lines.forEach(([tune, words]) => {
     const start = notes.length;
     const syl = words.split(/\s+/).filter(Boolean)
       .flatMap(w => w.split('-').map((part, i, all) => (i < all.length - 1 ? part + '-' : part)));
     tune.trim().split(/\s+/).forEach((tok, i) => {
       const m = /^([A-G][#b]?)(\d)?(?::([\d.]+))?$/.exec(tok);
-      if (m) notes.push({ midi: 12 * (+(m[2] || 4) + 1) + PITCH[m[1]], beats: +(m[3] || 1), syl: syl[i] || '' });
+      if (!m) return;
+      const beats = +(m[3] || 1);
+      notes.push({ midi: 12 * (+(m[2] || 4) + 1) + PITCH[m[1]], beats, pos, syl: syl[i] || '' });
+      pos += beats;
     });
     lines.push({ start, end: notes.length });
   });
@@ -1396,7 +1385,7 @@ function kidTune(song) {
 }
 
 let kidSong = null;
-let kidNotes = [];        // [{ midi, beats, syl }] in playing order
+let kidNotes = [];        // [{ midi, beats, pos, syl }] in playing order, pos in beats from the start
 let kidLines = [];        // [{ start, end }] into kidNotes
 let kidIdx = 0;
 let kidDone = false;
@@ -1481,6 +1470,88 @@ function drawKidPiano() {
   $('kidKeys').replaceChildren(frag);
 }
 
+/* the current line as sheet music: a treble staff, coloured notes with their letters, words below */
+const GAP = 20, BOTTOM = 130;              // staff line spacing, and the y of the bottom line (E4)
+const stepOf = midi => (Math.floor(midi / 12) - 1) * 7 + 'CDEFGAB'.indexOf(SHARP[mod12(midi)][0]);
+const stepY = step => BOTTOM - (step - 30) * GAP / 2;
+const escXml = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+// how each length is written: [filled, stem, flags, dotted]
+const NOTE_SHAPES = { 4: [0, 0, 0, 0], 3: [0, 1, 0, 1], 2: [0, 1, 0, 0], 1.5: [1, 1, 0, 1], 1: [1, 1, 0, 0],
+  0.75: [1, 1, 1, 1], 0.5: [1, 1, 1, 0], 0.25: [1, 1, 2, 0] };
+
+function kidStaff(line, at) {
+  const notes = kidNotes.slice(line.start, line.end);
+  const meter = kidSong.meter || 4, pickup = kidSong.pickup || 0, beamLen = kidSong.beam || 1;
+  const near = (a, b) => Math.abs(a - b) < 0.001;
+  const onBar = p => p > 0.001 && near((p - pickup) / meter, Math.round((p - pickup) / meter));
+  const lyricY = Math.max(160, ...kidNotes.map(n => stepY(stepOf(n.midi)))) + 34;   // the same for every line
+  const out = [];
+
+  // where everything goes, left to right
+  let x = 92;
+  const placed = notes.map((n, i) => {
+    if (i > 0 && onBar(n.pos)) { out.push(`<line x1="${x - 4}" y1="${BOTTOM - 4 * GAP}" x2="${x - 4}" y2="${BOTTOM}" stroke="#3b4252" stroke-width="1.6"/>`); x += 14; }
+    const step = stepOf(n.midi), [filled, stem, flags, dot] = NOTE_SHAPES[n.beats] || NOTE_SHAPES[1];
+    const p = { n, i: line.start + i, x: x + 14, y: stepY(step), step, filled, stem, flags, dot, up: step < 34 };
+    x += Math.max(48, 30 + n.beats * 20);
+    return p;
+  });
+  const last = notes[notes.length - 1], width = x + 4;
+  if (onBar(last.pos + last.beats)) {
+    const end = line.end === kidNotes.length;
+    out.push(`<line x1="${x - 8}" y1="${BOTTOM - 4 * GAP}" x2="${x - 8}" y2="${BOTTOM}" stroke="#3b4252" stroke-width="${end ? 5 : 1.6}"/>`);
+    if (end) out.push(`<line x1="${x - 15}" y1="${BOTTOM - 4 * GAP}" x2="${x - 15}" y2="${BOTTOM}" stroke="#3b4252" stroke-width="1.6"/>`);
+  }
+
+  // eighth notes inside the same beat share a beam
+  const groups = [];
+  placed.forEach(p => {
+    const g = groups[groups.length - 1], prev = g && g[g.length - 1];
+    const slot = q => Math.floor((q.n.pos - pickup + 0.001) / beamLen);
+    if (near(p.n.beats, 0.5) && prev && near(prev.n.beats, 0.5) && slot(prev) === slot(p) && prev.i === p.i - 1) g.push(p);
+    else groups.push([p]);
+  });
+  groups.forEach(g => {
+    if (g.length < 2) return;
+    const up = g.reduce((t, p) => t + p.step, 0) / g.length < 34;
+    const tip = up ? Math.min(...g.map(p => p.y)) - 52 : Math.max(...g.map(p => p.y)) + 52;
+    g.forEach(p => Object.assign(p, { up, tip, flags: 0 }));
+    const x1 = g[0].x + (up ? 12 : -12), x2 = g[g.length - 1].x + (up ? 12 : -12);
+    out.push(`<rect x="${x1 - 1}" y="${up ? tip : tip - 7}" width="${x2 - x1 + 2}" height="7" fill="#232a36" class="${g.every(p => p.i < at) ? 'past' : ''}"/>`);
+  });
+
+  out.push('<g stroke="#3b4252" stroke-width="1.6">');
+  for (let k = 0; k < 5; k++) out.push(`<line x1="4" y1="${BOTTOM - k * GAP}" x2="${width - 4}" y2="${BOTTOM - k * GAP}"/>`);
+  out.push('</g>');
+  out.push(`<text x="6" y="${BOTTOM + 17}" font-size="170" fill="#232a36" font-family="'Apple Symbols','Noto Music','Segoe UI Symbol',serif">&#x1D11E;</text>`);
+
+  placed.forEach(p => {
+    const c = KID_COLORS[mod12(p.n.midi)], now = p.i === at, past = p.i < at;
+    const g = [];
+    for (let s = 28; s >= p.step; s -= 2) g.push(`<line x1="${p.x - 19}" y1="${stepY(s)}" x2="${p.x + 19}" y2="${stepY(s)}" stroke="#3b4252" stroke-width="1.6"/>`);
+    for (let s = 40; s <= p.step; s += 2) g.push(`<line x1="${p.x - 19}" y1="${stepY(s)}" x2="${p.x + 19}" y2="${stepY(s)}" stroke="#3b4252" stroke-width="1.6"/>`);
+    if (now) g.push(`<circle class="halo" cx="${p.x}" cy="${p.y}" r="22" fill="${c}" opacity=".3"/>`);
+    if (p.stem) {
+      const sx = p.x + (p.up ? 12 : -12), tip = p.tip ?? (p.up ? p.y - 58 : p.y + 58);
+      g.push(`<line x1="${sx}" y1="${p.y}" x2="${sx}" y2="${tip}" stroke="#232a36" stroke-width="2.2"/>`);
+      for (let f = 0; f < p.flags; f++) {
+        const fy = tip + (p.up ? f * 10 : -f * 10), d = p.up ? 1 : -1;
+        g.push(`<path d="M${sx} ${fy} c1 ${8 * d} 14 ${10 * d} 10 ${24 * d}" fill="none" stroke="#232a36" stroke-width="3"/>`);
+      }
+    }
+    g.push(p.filled
+      ? `<ellipse cx="${p.x}" cy="${p.y}" rx="13" ry="10.5" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width="1.2"/>`
+      : `<ellipse cx="${p.x}" cy="${p.y}" rx="12.5" ry="10" fill="#fff" stroke="${c}" stroke-width="3.4"/>`);
+    g.push(`<text x="${p.x}" y="${p.y + 4.5}" text-anchor="middle" font-size="13" font-weight="800" fill="#141019">${noteName(p.n.midi)}</text>`);
+    if (p.dot) g.push(`<circle cx="${p.x + 20}" cy="${p.y - (p.step % 2 ? 0 : GAP / 4)}" r="3" fill="#232a36"/>`);
+    if (p.n.syl) g.push(`<text x="${p.x}" y="${lyricY}" text-anchor="middle" font-size="17" font-weight="${now ? 800 : 600}" fill="${now ? '#141019' : '#4a5263'}">${escXml(p.n.syl)}</text>`);
+    out.push(`<g class="${now ? 'now' : past ? 'past' : ''}">${g.join('')}</g>`);
+  });
+
+  return `<svg viewBox="0 0 ${width} ${lyricY + 12}" role="img" aria-label="Sheet music for this line">`
+    + `<style>.past{opacity:.35}</style>${out.join('')}</svg>`;
+}
+
 const kidWords = (from, to) => kidNotes.slice(from, to).map(n => n.syl).join(' ').replace(/- /g, '');
 
 function renderKid() {
@@ -1489,26 +1560,12 @@ function renderKid() {
   $('kidDone').hidden = !kidDone;
   $('kidBar').style.width = (kidDone ? 100 : kidIdx / kidNotes.length * 100) + '%';
   $('kidListen').querySelector('span').textContent = kidDemo ? 'Stop' : 'Listen';
+  $('kidListen').hidden = $('kidRestart').hidden = kidDone;
   if (kidDone) return;
 
   const at = kidDemo ? kidDemo.at : kidIdx;
   const li = kidLines.findIndex(l => at >= l.start && at < l.end), line = kidLines[li];
-  const frag = document.createDocumentFragment();
-  for (let i = line.start; i < line.end; i++) {
-    const n = kidNotes[i];
-    const b = document.createElement('div');
-    b.className = 'kb' + (i < at ? ' past' : '') + (i === at ? ' now' : '');
-    b.style.setProperty('--c', KID_COLORS[mod12(n.midi)]);
-    const dot = document.createElement('span');
-    dot.className = 'kdot';
-    dot.textContent = noteName(n.midi);
-    const syl = document.createElement('span');
-    syl.className = 'ksyl';
-    syl.textContent = n.syl;
-    b.append(dot, syl);
-    frag.appendChild(b);
-  }
-  $('kidLine').replaceChildren(frag);
+  $('kidStaff').innerHTML = kidStaff(line, at);
 
   const next = kidLines[li + 1];
   const nextText = next && (kidWords(next.start, next.end)
