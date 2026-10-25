@@ -312,7 +312,27 @@
   .kid-words { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px 0; }
   .kid-staff { max-width: 100%; background: #fbfaf6; border-radius: 18px; padding: 6px 14px; box-shadow: var(--shadow); }
   .kid-staff svg { display: block; height: clamp(140px, 27vh, 280px); max-width: 100%; font-family: var(--kid-font); }
-  .kid.grand .kid-staff svg { height: clamp(200px, 38vh, 380px); }
+  .kid.grand .kid-words { padding: 10px 0; }
+  .kid-staff.scroller { position: relative; flex: 1 1 auto; width: 100%; min-height: 150px; max-height: 400px; overflow: hidden; padding: 6px 0; }
+  .scroller .score-head { position: absolute; left: 0; top: 6px; z-index: 1; height: calc(100% - 12px); background: #fbfaf6; box-shadow: 16px 0 14px -6px #fbfaf6; }
+  .scroller .score-body { width: max-content; height: 100%; will-change: transform; }
+  .kid-staff.scroller svg { height: 100%; max-width: none; }
+  .scroller .now-line { position: absolute; top: 0; bottom: 0; z-index: 2; width: 3px; margin-left: -1.5px; border-radius: 2px; background: rgba(45,212,191,.55); }
+  .scroller .head.next { fill: var(--hc); filter: drop-shadow(0 0 4px var(--hc)); }
+  .scroller .head.hollow.next { fill: #fbfaf6; stroke: var(--hc); }
+  .scroller .head.hit { fill: #22c55e; }
+  .scroller .head.hollow.hit { fill: #fbfaf6; stroke: #22c55e; }
+  .scroller .head.miss { fill: #ef4444; }
+  .scroller .head.hollow.miss { fill: #fbfaf6; stroke: #ef4444; }
+  .scroller .auto { opacity: .3; }
+  .kid.grand .kid-words { align-items: stretch; }
+  .hands-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; padding: 10px var(--pad-r) 0 var(--pad-l); }
+  .seg { display: inline-flex; padding: 3px; border-radius: 13px; background: var(--card); border: 1px solid var(--line); }
+  .seg button {
+    min-height: 40px; padding: 6px 13px; border: 0; border-radius: 10px; background: none; cursor: pointer;
+    color: var(--muted); font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap;
+  }
+  .seg button.on { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px rgba(45,212,191,.55); }
   .kid-staff .halo { animation: popin .35s ease-out; transform-box: fill-box; transform-origin: center; }
   @keyframes popin { 0% { transform: scale(.5); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
   .kid-next { color: var(--muted); font-size: 16px; min-height: 1.5em; text-align: center; }
@@ -331,7 +351,7 @@
   .kkey {
     position: absolute; top: 9px;
     display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px;
-    padding-bottom: 12px; cursor: pointer; transition: background .14s ease, transform .05s ease;
+    padding-bottom: 12px; cursor: pointer; transition: transform .05s ease;
   }
   .kkey.white {
     height: calc(100% - 9px); z-index: 1;
@@ -353,6 +373,8 @@
   .kkey.target .klbl { background: #fff; }
   .kkey.target .kmid { color: rgba(0,0,0,.55); }
   @keyframes glow { 50% { filter: brightness(1.15); box-shadow: 0 0 24px 5px var(--c); } }
+  .kkey.white.autoplay { background: linear-gradient(#d9deea 76%, #c3cadb); }
+  .kkey.black.autoplay { background: linear-gradient(#6b7489, #4a5266 88%); }
   .kkey.target.got { animation: none; filter: saturate(.45) brightness(1.08); }
   .kid-keys.plain .klbl { width: auto; height: auto; background: none; color: #8a94a6; font-size: clamp(11px, 1.3vw, 15px); }
   .kid-keys.plain .kkey.target .klbl { background: none; color: rgba(0,0,0,.6); }
@@ -392,6 +414,10 @@
   .kid-stars i { width: clamp(60px, 9vw, 96px); aspect-ratio: 1; background: #ffd60a; clip-path: var(--star); animation: starin .5s cubic-bezier(.3,1.6,.5,1) backwards; }
   .kid-stars i:nth-child(2) { margin-bottom: 22px; animation-delay: .15s; }
   .kid-stars i:nth-child(3) { animation-delay: .3s; }
+  .kid-stars i.off { background: rgba(255,255,255,.14); }
+  .mini-stars { display: flex; gap: 4px; }
+  .mini-stars i { width: 18px; height: 18px; background: #ffd60a; clip-path: var(--star); }
+  .mini-stars i.off { background: rgba(255,255,255,.16); }
   @keyframes starin { from { transform: scale(0) rotate(-90deg); } }
   .kid-stage.finished .kid-words, .kid-stage.finished .kid-piano,
   .kid-stage.finished .kid-hint { display: none; }
@@ -542,6 +568,12 @@ or a whole page copied from a chord website, lyrics and all."></textarea>
     <button class="btn quiet" id="lessonRestart">Start again</button>
     <button class="midi-pill"><i></i><span>Connect keyboard</span></button>
   </header>
+  <div class="hands-controls" id="handsControls" hidden>
+    <div class="seg" data-set="hands"><button data-v="right">Right</button><button data-v="left">Left</button><button data-v="both">Both hands</button></div>
+    <div class="seg" data-set="pace"><button data-v="wait">Wait for me</button><button data-v="beat">Keep the beat</button></div>
+    <div class="seg" data-set="speed"><button data-v="0.5">Slow</button><button data-v="0.75">Medium</button><button data-v="1">Full</button></div>
+    <div class="seg" data-set="band"><button data-v="true">Band</button><button data-v="false">No band</button></div>
+  </div>
   <main class="kid-stage" id="lessonStage">
     <div class="kid-progress"><i id="lessonBar"></i></div>
     <div class="kid-words">
@@ -899,7 +931,7 @@ const uniqueNames = chords => [...new Set(chords.map(c => c.display))];
 /* ---------------------------- storage ---------------------------- */
 const $ = id => document.getElementById(id);
 const KEY_SONGS = 'chordKeys.songs', KEY_SETTINGS = 'chordKeys.settings';
-const KEY_SHARED = 'chordKeys.shared', KEY_HIDDEN = 'chordKeys.hidden';
+const KEY_SHARED = 'chordKeys.shared', KEY_HIDDEN = 'chordKeys.hidden', KEY_BEST = 'chordKeys.best';
 function load(key, fallback) {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
 }
@@ -908,6 +940,7 @@ function store(key, value) {
   catch (e) { toast('This browser is blocking storage, so changes will not last. Use Back up songs to keep a copy.'); }
 }
 let songs = load(KEY_SONGS, []);
+const best = load(KEY_BEST, {});                // Two hands: your best { pct, stars } per song, hands and pace
 
 // songs.json ships with the app, so every browser (laptop, Safari, MIDIWeb Browser) sees
 // the same songs. It uses the Back up songs format. Songs saved in this browser come first
@@ -938,7 +971,8 @@ async function loadShared() {
   store(KEY_SHARED, shared);
   if (view === 'home') renderSongs();
 }
-const settings = Object.assign({ follow: true, soundOut: false, midi: false }, load(KEY_SETTINGS, {}));
+const settings = Object.assign({ follow: true, soundOut: false, midi: false,
+  hands: 'both', pace: 'wait', speed: 1, band: true }, load(KEY_SETTINGS, {}));
 const saveSettings = () => store(KEY_SETTINGS, settings);
 
 const EXAMPLE = {
@@ -958,7 +992,7 @@ function toast(msg) {
 let view = 'home';
 function show(name) {
   view = name;
-  if (name !== 'lesson') stopDemo();
+  if (name !== 'lesson') { stopDemo(); stopRun(); }
   ['home', 'edit', 'play', 'lessons', 'lesson'].forEach(v => ($(v).hidden = v !== name));
   window.scrollTo(0, 0);
 }
@@ -1445,10 +1479,11 @@ function parsePart(tune, pos) {
 // The song as steps, each everything that starts at the same moment in either hand, and lines of steps
 function lessonTune(song) {
   const steps = [], lines = [];
-  let pos = 0;
+  let pos = 0, id = 0;
   song.lines.forEach(line => {
     const parts = Array.isArray(line) ? { right: line[0], words: line[1] } : line;
     const right = parsePart(parts.right, pos), left = parts.left ? parsePart(parts.left, pos) : [];
+    [...right, ...left].forEach(e => e.notes.forEach(n => (n.id = id++)));
     const start = steps.length, linePos = pos;
     [...right.map(e => ['right', e]), ...left.map(e => ['left', e])]
       .filter(([, e]) => e.notes.length)
@@ -1499,6 +1534,13 @@ function openLessons(mode) {
     } else {
       meta.textContent = [s.by, s.level].filter(Boolean).join(' · ');
       card.append(title, meta);
+      const stars = Math.max(-1, ...Object.keys(best).filter(k => k.startsWith(s.id + '|')).map(k => best[k].stars));
+      if (stars >= 0) {                        // your best so far, in any hand or pace
+        const row = document.createElement('div');
+        row.className = 'mini-stars';
+        for (let i = 0; i < 3; i++) row.appendChild(document.createElement('i')).classList.toggle('off', i >= stars);
+        card.appendChild(row);
+      }
     }
     card.onclick = () => go(mode + '/' + s.id);
     frag.appendChild(card);
@@ -1513,13 +1555,19 @@ function openLesson(mode, id) {
   const song = MODES[mode].songs.find(s => s.id === id);
   if (!song) return go(mode);
   stopDemo();
+  stopRun();
   Object.assign(lesson, { mode, song, idx: 0, done: false }, lessonTune(song));
   lesson.got.clear();
+  const kid = kidMode();
   $('lessonTitle').textContent = song.title;
-  $('lesson').classList.toggle('grand', !kidMode());
+  $('lesson').classList.toggle('grand', !kid);
+  $('lessonStaff').classList.toggle('scroller', !kid);
+  $('handsControls').hidden = kid;
+  $('lessonNext').hidden = !kid;
   show('lesson');
   drawLessonPiano();
-  renderLesson();
+  if (kid) renderLesson();
+  else handsOpen();
   paintHeld();
 }
 
@@ -1593,24 +1641,23 @@ function keyAccidental(letter) {
   return '';
 }
 
-function lessonStaff(line, li, at) {
-  const kid = kidMode(), song = lesson.song;
-  const meter = song.meter || 4, pickup = song.pickup || 0, beamLen = song.beam || 1;
-  const onBar = p => p > 0.001 && near((p - pickup) / meter, Math.round((p - pickup) / meter));
+function staffGeometry() {
+  const kid = kidMode();
   const staves = kid ? [{ ...TREBLE, bottom: 130, part: 'right' }]
     : [{ ...TREBLE, bottom: 110, part: 'right' }, { ...BASS, bottom: 260, part: 'left' }];
   const yOf = (st, step) => st.bottom - (step - st.base) * GAP / 2;
   const top = staves[0].bottom - 4 * GAP, bottom = staves[staves.length - 1].bottom;
-  const head = kid ? 13 : 8.5;                    // half a notehead's width
-  const out = [], marks = [];                     // staff furniture, then the notes on top
-
   // the same height for every line of the song
   const ys = lesson.lines.flatMap(l => staves.flatMap(st => l[st.part].flatMap(e => e.notes.map(n => yOf(st, n.step)))));
   const lyricY = Math.max(160, ...ys) + 34;
   const viewTop = Math.min(top - 30, Math.min(...ys) - 66);
   const viewBottom = kid ? lyricY + 12 : Math.max(bottom + 30, Math.max(...ys) + 66);
+  return { kid, staves, yOf, top, bottom, lyricY, viewTop, viewBottom };
+}
 
-  // clef, key signature and, on the first line, the time signature
+// The clef, key signature and time signature that start a staff; returns where the music can begin
+function staffFront({ kid, staves, yOf }, out, withTime) {
+  const song = lesson.song, meter = song.meter || 4;
   let x = kid ? 92 : 74;
   const sharps = song.sharps || 0, sigSteps = sharps > 0 ? [38, 35, 39, 36, 33, 37, 34] : [34, 37, 33, 36, 32, 35, 31];
   staves.forEach(st => {
@@ -1621,13 +1668,36 @@ function lessonStaff(line, li, at) {
     }
   });
   x += Math.abs(sharps) * 13 + (sharps ? 8 : 0);
-  if (!kid && li === 0) {
+  if (withTime) {
     const [beats, unit] = (song.time || meter + '/4').split('/');
     staves.forEach(st => out.push(
       `<text x="${x + 13}" y="${st.bottom - 2 * GAP + 1}" font-size="44" font-weight="800" text-anchor="middle" fill="${INK}" font-family="Georgia,serif">${beats}</text>`,
       `<text x="${x + 13}" y="${st.bottom + 1}" font-size="44" font-weight="800" text-anchor="middle" fill="${INK}" font-family="Georgia,serif">${unit}</text>`));
     x += 34;
   }
+  return x;
+}
+
+// Two hands: the front of the grand staff, which stays put while the music scrolls under it
+function scoreHeader() {
+  const g = staffGeometry(), out = [];
+  const width = staffFront(g, out, true) + 4;
+  g.staves.forEach(st => { for (let k = 0; k < 5; k++) out.unshift(`<line x1="4" y1="${st.bottom - k * GAP}" x2="${width}" y2="${st.bottom - k * GAP}" stroke="${LINE}" stroke-width="1.6"/>`); });
+  out.unshift(`<line x1="4" y1="${g.top}" x2="4" y2="${g.bottom}" stroke="${LINE}" stroke-width="3"/>`);
+  return `<svg class="score-head" viewBox="0 ${g.viewTop} ${width} ${g.viewBottom - g.viewTop}" aria-hidden="true">${out.join('')}</svg>`;
+}
+
+// A line of a kid song with the note at `at` marked, or with ppb (units per beat) a whole two-hand
+// piece laid out evenly in time for scrolling, where the parts in `auto` are played for you
+const SCORE_X0 = 40;
+function lessonStaff({ line, li = 0, at = -1, ppb = 0, auto = [] }) {
+  const g = staffGeometry(), { kid, staves, yOf, top, bottom, lyricY, viewTop, viewBottom } = g;
+  const song = lesson.song, meter = song.meter || 4, pickup = song.pickup || 0, beamLen = song.beam || 1;
+  const onBar = p => p > 0.001 && near((p - pickup) / meter, Math.round((p - pickup) / meter));
+  const head = kid ? 13 : 8.5;                    // half a notehead's width
+  const out = [], marks = [];                     // staff furniture, then the notes on top
+  const xAt = pos => SCORE_X0 + (pos - line.pos) * ppb;
+  let x = ppb ? 0 : staffFront(g, out, !kid && li === 0);
 
   // walk the moments of the line left to right, placing everything that starts at each one
   const events = staves.flatMap(st => line[st.part].map(e => ({ ...e, st })));
@@ -1635,7 +1705,10 @@ function lessonStaff(line, li, at) {
   const inBar = new Map();                        // accidentals in force until the next bar line
   const barLine = (bx, thick) => out.push(`<line x1="${bx}" y1="${top}" x2="${bx}" y2="${bottom}" stroke="${LINE}" stroke-width="${thick ? 5 : 1.6}"/>`);
   moments.forEach((pos, k) => {
-    if (k > 0 && onBar(pos)) { barLine(x - 4); x += 14; inBar.clear(); }
+    if (k > 0 && onBar(pos)) {
+      if (!ppb) { barLine(x - 4); x += 14; }
+      inBar.clear();
+    }
     const here = events.filter(e => near(e.pos, pos));
     let room = 0;
     here.forEach(e => e.notes.forEach(n => {
@@ -1643,20 +1716,25 @@ function lessonStaff(line, li, at) {
       n.shownAcc = n.acc !== now ? ACC_GLYPH[n.acc] : '';
       if (n.shownAcc) { inBar.set(id, n.acc); room = 14; }
     }));
+    if (ppb) return here.forEach(e => (e.x = xAt(pos)));
     x += room;
     here.forEach(e => (e.x = x + 14));
     const next = k + 1 < moments.length ? moments[k + 1] : line.endPos;
     x += kid ? Math.max(48, 30 + (next - pos) * 20) : Math.max(36, 24 + (next - pos) * 26);
   });
-  const width = x + 4;
-  if (onBar(line.endPos)) {
+  const width = ppb ? xAt(line.endPos) + 40 : x + 4;
+  if (ppb) {
+    for (let b = pickup > 0.001 ? pickup : meter; b < line.endPos - 0.001; b += meter) barLine(xAt(b) - 28);
+    barLine(xAt(line.endPos) - 8, true);
+    barLine(xAt(line.endPos) - 15);
+  } else if (onBar(line.endPos)) {
     const end = li === lesson.lines.length - 1;
     barLine(x - 8, end);
     if (end) barLine(x - 15);
   }
   out.push(`<g stroke="${LINE}" stroke-width="1.6">`);
   staves.forEach(st => { for (let k = 0; k < 5; k++) out.push(`<line x1="4" y1="${st.bottom - k * GAP}" x2="${width - 4}" y2="${st.bottom - k * GAP}"/>`); });
-  if (!kid) out.push(`<line x1="4" y1="${top}" x2="4" y2="${bottom}" stroke-width="3"/>`);
+  if (!kid && !ppb) out.push(`<line x1="4" y1="${top}" x2="4" y2="${bottom}" stroke-width="3"/>`);
   out.push('</g>');
 
   // stems point away from the middle line; short notes within one beat share their beams
@@ -1679,7 +1757,7 @@ function lessonStaff(line, li, at) {
     g.forEach(e => Object.assign(e, { up, tip, beamed: g.length > 1 }));
     if (g.length < 2) return;
     const sx = e => e.x + (up ? head - 1 : 1 - head), dir = up ? 1 : -1;
-    const past = g.every(e => e.step < at) ? ' class="past"' : '';
+    const past = at >= 0 && g.every(e => e.step < at) ? ' class="past"' : auto.includes(g[0].st.part) ? ' class="auto"' : '';
     const beam = (x1, x2, level) => marks.push(`<rect${past} x="${x1 - 1}" y="${(up ? tip : tip - 7) + level * 10 * dir}" width="${x2 - x1 + 2}" height="7" fill="${INK}"/>`);
     beam(sx(g[0]), sx(g[g.length - 1]), 0);
     g.forEach((e, i) => {                         // a second beam for sixteenths, or a stub if alone
@@ -1692,7 +1770,8 @@ function lessonStaff(line, li, at) {
 
   events.forEach(e => {
     const st = e.st, [filled, stem, flags, dot] = shapeOf(e.beats), g = [];
-    const now = e.notes.length && e.step === at, past = e.notes.length ? e.step < at : e.pos < lesson.steps[at].pos;
+    const now = e.notes.length && e.step === at, past = at >= 0 && (e.notes.length ? e.step < at : e.pos < lesson.steps[at].pos);
+    const cls = past ? ' class="past"' : auto.includes(st.part) ? ' class="auto"' : '';
     if (!e.notes.length) {                        // a rest
       const mid = yOf(st, middle(st)), x = e.x, ink = `fill="none" stroke="${INK}" stroke-linecap="round" stroke-linejoin="round"`;
       if (e.beats >= 2) g.push(`<rect x="${x - 8}" y="${e.beats >= 4 ? mid - GAP : mid - 7}" width="16" height="7" fill="${INK}"/>`);
@@ -1704,7 +1783,7 @@ function lessonStaff(line, li, at) {
           `<path d="M${x - 5 - i * 3} ${hy + 2} Q${x + 1 - i * 3} ${hy + 5} ${x + 5 - i * 3.3} ${hy - 3}" ${ink} stroke-width="2.2"/>`));
       }
       if (dot) g.push(`<circle cx="${e.x + 13}" cy="${mid - GAP / 2}" r="2.6" fill="${INK}"/>`);
-      marks.push(`<g${past ? ' class="past"' : ''}>${g.join('')}</g>`);
+      marks.push(`<g${cls}>${g.join('')}</g>`);
       return;
     }
     const color = n => (kid ? KID_COLORS[mod12(n.midi)] : now ? HAND_COLORS[n.hand || st.part] : INK);
@@ -1733,94 +1812,109 @@ function lessonStaff(line, li, at) {
         g.push(`<text x="${e.x}" y="${y + 4.5}" text-anchor="middle" font-size="13" font-weight="800" fill="#141019">${noteName(n.midi)}</text>`);
       } else {
         g.push(filled
-          ? `<ellipse cx="${e.x}" cy="${y}" rx="8.6" ry="6.4" transform="rotate(-22 ${e.x} ${y})" fill="${c}"/>`
-          : `<ellipse cx="${e.x}" cy="${y}" rx="7.8" ry="5.6" transform="rotate(-22 ${e.x} ${y})" fill="#fbfaf6" stroke="${c}" stroke-width="2.6"/>`);
+          ? `<ellipse class="head" data-id="${n.id}" style="--hc:${HAND_COLORS[st.part]}" cx="${e.x}" cy="${y}" rx="8.6" ry="6.4" transform="rotate(-22 ${e.x} ${y})" fill="${c}"/>`
+          : `<ellipse class="head hollow" data-id="${n.id}" style="--hc:${HAND_COLORS[st.part]}" cx="${e.x}" cy="${y}" rx="7.8" ry="5.6" transform="rotate(-22 ${e.x} ${y})" fill="#fbfaf6" stroke="${c}" stroke-width="2.6"/>`);
       }
       if (dot) g.push(`<circle cx="${e.x + head + 7}" cy="${y - (n.step % 2 ? 0 : GAP / 4)}" r="${kid ? 3 : 2.6}" fill="${INK}"/>`);
     });
     const syl = kid && lesson.steps[e.step].syl;
     if (syl) g.push(`<text x="${e.x}" y="${lyricY}" text-anchor="middle" font-size="17" font-weight="${now ? 800 : 600}" fill="${now ? '#141019' : '#4a5263'}">${escXml(syl)}</text>`);
-    marks.push(`<g${past ? ' class="past"' : ''}>${g.join('')}</g>`);
+    marks.push(`<g${cls}>${g.join('')}</g>`);
   });
 
-  return `<svg viewBox="0 ${viewTop} ${width} ${viewBottom - viewTop}" role="img" aria-label="Sheet music for this line">`
+  return `<svg viewBox="0 ${viewTop} ${width} ${viewBottom - viewTop}" role="img" aria-label="Sheet music">`
     + `<style>.past{opacity:.35}</style>${out.join('')}${marks.join('')}</svg>`;
 }
 
 const lessonWords = l => lesson.steps.slice(l.start, l.end).map(s => s.syl).join(' ').replace(/- /g, '');
 
 function renderLesson() {
+  if (!kidMode()) return handsRender();
   const { steps, lines } = lesson;
   if (!steps.length) return;
-  const kid = kidMode();
-  $('lessonStage').classList.toggle('finished', lesson.done);
-  $('lessonDone').hidden = !lesson.done;
+  showDone(lesson.done, 3, 'You did it!', 'You played the whole song.');
   $('lessonBar').style.width = (lesson.done ? 100 : lesson.idx / steps.length * 100) + '%';
   $('lessonListen').querySelector('span').textContent = lesson.demo ? 'Stop' : 'Listen';
-  $('lessonListen').hidden = $('lessonRestart').hidden = lesson.done;
+  $('lessonRestart').textContent = 'Start again';
   if (lesson.done) return;
 
   const at = lesson.demo ? lesson.demo.at : lesson.idx;
   const li = lines.findIndex(l => at >= l.start && at < l.end), line = lines[li];
-  $('lessonStaff').innerHTML = lessonStaff(line, li, at);
+  $('lessonStaff').innerHTML = lessonStaff({ line, li, at });
 
   const next = lines[li + 1];
-  $('lessonNext').hidden = !kid;
   $('lessonNext').textContent = !next ? 'Last line' : 'Then: ' + (lessonWords(next)
     || steps.slice(next.start, next.end).map(s => noteName(s.notes[0].midi)).join(' '));
 
-  // the keys to play now, each with a marker over it
-  const step = steps[at], waiting = step.notes.filter(n => lesson.demo || !lesson.got.has(n.midi));
+  const step = steps[at];
+  markKeys(step.notes, n => KID_COLORS[mod12(n.midi)], n => !lesson.demo && lesson.got.has(n.midi));
+  $('lessonHint').textContent = lesson.demo ? 'Listen, then play it yourself.'
+    : midiState === 'connected' ? 'Play the key the arrow points to. Any ' + spell(step.notes[0]) + ' on your keyboard counts.'
+    : 'Tap the key the arrow points to, or connect your keyboard at the top.';
+}
+
+// The end-of-song panel, with as many of its three stars lit as were earned
+function showDone(done, stars, title, text) {
+  $('lessonStage').classList.toggle('finished', done);
+  $('lessonDone').hidden = !done;
+  $('lessonListen').hidden = $('lessonRestart').hidden = done;
+  if (!done) return;
+  [...$('lessonDone').querySelectorAll('.kid-stars i')].forEach((s, i) => s.classList.toggle('off', i >= stars));
+  $('lessonDone').querySelector('h2').textContent = title;
+  $('lessonDone').querySelector('p').textContent = text;
+}
+
+// Marks the keys to play now, each with a marker over it until it has been played
+function markKeys(notes, colorOf, played) {
   const pins = document.createDocumentFragment();
   $('lessonKeys').querySelectorAll('.kkey').forEach(k => {
-    const note = step.notes.find(n => n.midi === +k.dataset.midi);
+    const note = notes.find(n => n.midi === +k.dataset.midi);
     k.classList.toggle('target', !!note);
-    k.classList.toggle('got', !!note && !waiting.includes(note));
+    k.classList.toggle('got', !!note && played(note));
     if (!note) return;
-    const c = kid ? KID_COLORS[mod12(note.midi)] : HAND_COLORS[note.hand];
-    if (!kid) k.style.setProperty('--c', c);
-    if (!waiting.includes(note)) return;
+    const c = colorOf(note);
+    if (!kidMode()) k.style.setProperty('--c', c);
+    if (played(note)) return;
     const pin = document.createElement('div');
-    pin.className = 'pin' + (kid ? '' : ' small');
+    pin.className = 'pin' + (kidMode() ? '' : ' small');
     pin.style.left = k.dataset.x + '%';
     pin.style.setProperty('--c', c);
     pin.textContent = spell(note);
     pins.appendChild(pin);
   });
   $('lessonPins').replaceChildren(pins);
-
-  const name = spell(step.notes[0]);
-  $('lessonHint').textContent = lesson.demo ? 'Listen, then play it yourself.'
-    : kid ? (midiState === 'connected' ? 'Play the key the arrow points to. Any ' + name + ' on your keyboard counts.'
-      : 'Tap the key the arrow points to, or connect your keyboard at the top.')
-    : (midiState === 'connected' ? 'Play the marked keys. Teal is your right hand, purple your left.'
-      : 'Tap the marked keys, or connect your keyboard at the top. Teal is your right hand, purple your left.');
 }
 
-// A note from the keyboard or the screen. Kids can play the right note in any octave; with two
-// hands it has to be the written key. A step moves on once all its notes have been played.
+// A wrong key gives a little shake, and so do the markers
+function shake(note) {
+  const key = $('lessonKeys').querySelector('[data-midi="' + note + '"]');
+  [key, ...$('lessonPins').children].forEach(el => {
+    if (!el) return;
+    const cls = el === key ? 'oops' : 'nudge';
+    el.classList.remove(cls);
+    void el.offsetWidth;                   // restart the animation if it is already running
+    el.classList.add(cls);
+    el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+  });
+}
+
+function sparkleKey(midi, color) {
+  const key = $('lessonKeys').querySelector('[data-midi="' + midi + '"]');
+  if (!key) return;
+  const r = key.getBoundingClientRect();
+  sparkle(r.left + r.width / 2, r.top + 20, 7, [color, '#fff'], 70);
+}
+
+// A note from the keyboard or the screen. Kids can play the right note in any octave.
 function lessonPress(note) {
-  if (view !== 'lesson' || lesson.done || !lesson.steps.length) return;
+  if (view !== 'lesson' || !lesson.steps.length) return;
+  if (!kidMode()) return handsPress(note);
+  if (lesson.done) return;
   stopDemo();
-  const kid = kidMode(), step = lesson.steps[lesson.idx];
-  const hit = step.notes.find(n => (kid ? mod12(n.midi) === mod12(note) : n.midi === note));
-  if (!hit) {
-    const key = $('lessonKeys').querySelector('[data-midi="' + note + '"]');
-    [key, ...$('lessonPins').children].forEach(el => {
-      if (!el) return;
-      const cls = el === key ? 'oops' : 'nudge';
-      el.classList.remove(cls);
-      void el.offsetWidth;                   // restart the animation if it is already running
-      el.classList.add(cls);
-      el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
-    });
-    return;
-  }
-  const key = $('lessonKeys').querySelector('[data-midi="' + hit.midi + '"]');
-  if (key) {
-    const r = key.getBoundingClientRect();
-    sparkle(r.left + r.width / 2, r.top + 20, 7, [kid ? KID_COLORS[mod12(hit.midi)] : HAND_COLORS[hit.hand], '#fff'], 70);
-  }
+  const step = lesson.steps[lesson.idx];
+  const hit = step.notes.find(n => mod12(n.midi) === mod12(note));
+  if (!hit) return shake(note);
+  sparkleKey(hit.midi, KID_COLORS[mod12(hit.midi)]);
   lesson.got.add(hit.midi);
   if (step.notes.every(n => lesson.got.has(n.midi))) {
     lesson.got.clear();
@@ -1849,15 +1943,16 @@ function sparkle(x, y, count, colors, spread) {
   }
 }
 
-// Plays the line you're on, both hands, moving the markers along with it
+// Plays the line the child is on, moving the arrow along with it
 function lessonListen() {
+  if (!kidMode()) return handsListen();
   if (lesson.demo) return stopDemo();
   if (lesson.done) return;
   const line = lesson.lines.find(l => lesson.idx >= l.start && lesson.idx < l.end);
   const demo = lesson.demo = { at: line.start, timers: [], voices: [] };
   const beat = lesson.song.beat, later = (beats, fn) => demo.timers.push(setTimeout(fn, 100 + beats * beat * 1000));
-  [...line.right, ...line.left].forEach(e => e.notes.forEach(n => later(e.pos - line.pos, () => {
-    const voice = sound(n.midi, 0, line.left.includes(e) ? 0.7 : 0.9);
+  line.right.forEach(e => e.notes.forEach(n => later(e.pos - line.pos, () => {
+    const voice = sound(n.midi, 0, 0.9);
     if (!voice) return;
     demo.voices.push(voice);
     demo.timers.push(setTimeout(() => {
@@ -1879,11 +1974,303 @@ function stopDemo() {
 }
 
 function lessonRestart() {
+  if (!kidMode()) return handsRestart();
   stopDemo();
   lesson.idx = 0;
   lesson.done = false;
   lesson.got.clear();
   renderLesson();
+}
+
+/* ---- Two hands: the whole piece scrolls past a "now" line, like Simply Piano ----
+   Wait for me holds the music at each step until it's played. Keep the beat runs at the song's
+   tempo after a count-in, with a drum band if wanted, and scores how close to the beat each note
+   lands. Whichever hand isn't being practised is played for you. */
+const PERFECT = 0.1, GOOD = 0.25;           // seconds either side of the beat
+const RESULTS = ['next', 'hit', 'perfect', 'good', 'miss'];
+const run = {
+  state: 'ready',        // ready, playing or done
+  demo: false,           // Listen: the app plays every note
+  t: 0, t0: 0, clock: 0, // where the music is, in beats, and the time it left t0
+  endPos: 0,
+  notes: [],             // every note in order: { id, midi, pos, beats, part, auto, result }
+  steps: [],             // the notes to play, grouped by when they start, for Wait for me
+  idx: 0,                // the step being waited for
+  queue: [], next: 0,    // sounds to make, by position, and the first not yet scheduled
+  wrong: 0,
+  timers: [], voices: [],
+  frame: 0,
+  ppb: 64, scale: 1, nowPx: 0, heads: new Map(),
+  shown: '',             // the notes marked to play now, so the keyboard is only redrawn when they change
+};
+const waitMode = () => settings.pace !== 'beat';
+const secPerBeat = () => lesson.song.beat / settings.speed;
+const practised = part => settings.hands === 'both' || settings.hands === part;
+const bestKey = () => [lesson.song.id, settings.hands, settings.pace].join('|');
+
+function handsOpen() {
+  const last = lesson.lines[lesson.lines.length - 1];
+  const whole = { pos: 0, endPos: last.endPos, right: lesson.lines.flatMap(l => l.right), left: lesson.lines.flatMap(l => l.left) };
+  const shortest = Math.min(...[...whole.right, ...whole.left].map(e => e.beats));
+  run.ppb = Math.max(64, 44 / shortest);     // even in time, with room for the quickest notes
+  run.endPos = last.endPos;
+  $('lessonStaff').innerHTML = scoreHeader() + '<div class="score-body">'
+    + lessonStaff({ line: whole, ppb: run.ppb, auto: ['right', 'left'].filter(p => !practised(p)) })
+    + '</div><i class="now-line"></i>';
+  run.heads = new Map([...$('lessonStaff').querySelectorAll('.score-body .head')].map(h => [+h.dataset.id, h]));
+  measureScore();
+  resetRun();
+}
+
+function measureScore() {
+  const body = $('lessonStaff').querySelector('.score-body svg'), head = $('lessonStaff').querySelector('.score-head');
+  if (!body) return;
+  run.scale = body.getBoundingClientRect().height / body.viewBox.baseVal.height;
+  run.nowPx = head.getBoundingClientRect().width + 60;
+  $('lessonStaff').querySelector('.now-line').style.left = run.nowPx + 'px';
+}
+
+function stopRun() {
+  cancelAnimationFrame(run.frame);
+  run.timers.forEach(clearTimeout);
+  run.voices.forEach(v => v.release());
+  run.timers = [];
+  run.voices = [];
+  $('lessonKeys').querySelectorAll('.autoplay').forEach(k => k.classList.remove('autoplay'));
+}
+
+function resetRun() {
+  stopRun();
+  run.notes = lesson.lines.flatMap(l => ['right', 'left'].flatMap(part => l[part].flatMap(e => e.notes.map(n => (
+    { id: n.id, midi: n.midi, letter: n.letter, acc: n.acc, pos: e.pos, beats: e.beats, part, auto: !practised(part), result: '' })))))
+    .sort((a, b) => a.pos - b.pos);
+  run.steps = [];
+  run.notes.filter(n => !n.auto).forEach(n => {
+    const last = run.steps[run.steps.length - 1];
+    if (last && near(last.pos, n.pos)) last.notes.push(n);
+    else run.steps.push({ pos: n.pos, notes: [n] });
+  });
+  Object.assign(run, { state: 'ready', demo: false, t: 0, t0: 0, idx: 0, wrong: 0, shown: null });
+  run.heads.forEach(h => h.classList.remove(...RESULTS));
+  handsRender();
+  handsView();
+}
+
+function startRun(demo) {
+  stopRun();
+  const song = lesson.song, meter = song.meter || 4, pickup = song.pickup || 0;
+  const [num, den] = (song.time || meter + '/4').split('/').map(Number), unit = 4 / den;
+  const timed = demo || !waitMode();
+  const begin = timed && !demo ? pickup - meter : 0;    // a bar of count-in before Keep the beat
+  const queue = run.notes.filter(n => demo || n.auto).map(note => ({ pos: note.pos, note }));
+  for (let p = begin, k = 0; p < -0.001; p += unit, k++) queue.push({ pos: p, drum: k ? 'click' : 'accent' });
+  if (timed && settings.band) {
+    for (let bar = pickup - meter; bar < run.endPos - 0.001; bar += meter) {
+      for (let k = 0; k < num; k++) {
+        const p = bar + k * unit;
+        if (p < -0.001 || p > run.endPos - 0.001) continue;
+        queue.push({ pos: p, drum: k === 0 || (num === 4 && k === 2) ? 'kick' : num === 4 ? 'snare' : 'hat' });
+        if (num === 4) queue.push({ pos: p, drum: 'hat' }, { pos: p + unit / 2, drum: 'hat' });
+      }
+    }
+  }
+  Object.assign(run, { state: 'playing', demo, queue: queue.sort((a, b) => a.pos - b.pos), next: 0,
+    t: begin, t0: begin, clock: performance.now() });
+  ensureAudio();
+  handsRender();
+  run.frame = requestAnimationFrame(tick);
+}
+
+function tick() {
+  if (run.state !== 'playing') return;
+  const now = performance.now(), spb = secPerBeat();
+  const holding = waitMode() && !run.demo;
+  const hold = holding && run.idx < run.steps.length ? run.steps[run.idx].pos : Infinity;
+  let t = run.t0 + (now - run.clock) / 1000 / spb;
+  if (t >= hold) { t = hold; run.t0 = hold; run.clock = now; }
+  run.t = t;
+
+  // sounds go out a moment ahead, but never past a step that is still waiting to be played
+  const limit = Math.min(t + 0.12 / spb, hold - 0.001);
+  while (run.next < run.queue.length && run.queue[run.next].pos <= limit) {
+    const item = run.queue[run.next++], delay = Math.max(0, (item.pos - t) * spb);
+    if (item.drum) drum(item.drum, delay);
+    else playFor(item.note, delay, spb);
+  }
+  if (!holding && !run.demo) {                // Keep the beat: a note well past the line was missed
+    run.notes.forEach(n => { if (!n.auto && !n.result && (t - n.pos) * spb > GOOD) mark(n, 'miss'); });
+  }
+  if (t >= run.endPos + 0.5 / spb && (!holding || run.idx >= run.steps.length)) return finishRun();
+  handsView();
+  run.frame = requestAnimationFrame(tick);
+}
+
+// Sounds a note the app plays for you, lighting its key while it sounds
+function playFor(n, delay, spb) {
+  const voice = sound(n.midi, delay, n.part === 'left' ? 0.7 : 0.85);
+  if (voice) run.voices.push(voice);
+  const key = $('lessonKeys').querySelector('[data-midi="' + n.midi + '"]');
+  const later = (secs, fn) => run.timers.push(setTimeout(fn, secs * 1000));
+  later(delay, () => key && key.classList.add('autoplay'));
+  later(delay + n.beats * spb * 0.95, () => {
+    if (voice) { voice.release(); run.voices = run.voices.filter(v => v !== voice); }
+    if (key) key.classList.remove('autoplay');
+  });
+}
+
+function mark(n, result) {
+  n.result = result;
+  const h = run.heads.get(n.id);
+  if (h) { h.classList.remove('next'); h.classList.add(result === 'miss' ? 'miss' : 'hit'); }
+}
+
+function handsPress(note) {
+  if (run.state === 'done' || run.demo) return;
+  if (run.state === 'ready') {
+    if (!waitMode()) return;                  // Keep the beat starts with Start and a count-in
+    startRun(false);
+  }
+  const now = performance.now(), spb = secPerBeat();
+  let hit = null;
+  if (waitMode()) {
+    const step = run.steps[run.idx];
+    hit = step && step.notes.find(n => n.midi === note && !n.result);
+    if (hit) mark(hit, 'hit');
+    if (hit && step.notes.every(n => n.result)) {
+      run.idx++;
+      run.t0 = run.t;                         // carry on from here
+      run.clock = now;
+    }
+  } else {
+    const t = run.t0 + (now - run.clock) / 1000 / spb;
+    let best = Infinity;
+    run.notes.forEach(n => {
+      const off = Math.abs(n.pos - t) * spb;
+      if (!n.auto && !n.result && n.midi === note && off <= GOOD && off < best) { best = off; hit = n; }
+    });
+    if (hit) mark(hit, best <= PERFECT ? 'perfect' : 'good');
+  }
+  if (!hit) {
+    run.wrong++;
+    return shake(note);
+  }
+  sparkleKey(hit.midi, HAND_COLORS[hit.part]);
+  handsView();
+}
+
+// The notes to play next: the step being waited for, or the earliest still to come
+function nextNotes() {
+  if (run.demo || run.state === 'done') return [];
+  if (waitMode()) return run.steps[run.idx] ? run.steps[run.idx].notes : [];
+  const first = run.notes.find(n => !n.auto && !n.result);
+  return first ? run.notes.filter(n => !n.auto && !n.result && near(n.pos, first.pos)) : [];
+}
+
+// Moves the music to where it is now and marks what comes next
+function handsView() {
+  const body = $('lessonStaff').querySelector('.score-body');
+  if (!body) return;
+  body.style.transform = `translateX(${run.nowPx - (SCORE_X0 + run.t * run.ppb) * run.scale}px)`;
+  $('lessonBar').style.width = Math.max(0, Math.min(1, run.t / run.endPos)) * 100 + '%';
+  const next = nextNotes(), shown = next.map(n => n.id + n.result).join();
+  if (shown === run.shown) return;
+  run.shown = shown;
+  run.heads.forEach(h => h.classList.remove('next'));
+  next.forEach(n => { if (!n.result) run.heads.get(n.id)?.classList.add('next'); });
+  markKeys(next, n => HAND_COLORS[n.part], n => !!n.result);
+}
+
+function finishRun() {
+  stopRun();
+  if (run.demo) return resetRun();
+  run.state = 'done';
+  const played = run.notes.filter(n => !n.auto), count = r => played.filter(n => n.result === r).length;
+  const perfect = count('perfect'), good = count('good'), missed = count('miss');
+  const wrongKeys = run.wrong + ' wrong key' + (run.wrong === 1 ? '' : 's');
+  const pct = Math.round(waitMode()
+    ? played.length / (played.length + run.wrong) * 100
+    : Math.max(0, perfect + good * 0.7 - run.wrong * 0.25) / played.length * 100);
+  const stars = pct >= 90 ? 3 : pct >= 75 ? 2 : pct >= 50 ? 1 : 0;
+  const was = best[bestKey()], better = !was || pct > was.pct;
+  if (better) { best[bestKey()] = { pct, stars }; store(KEY_BEST, best); }
+  run.result = {
+    stars,
+    title: ['Keep practising', 'Nice work!', 'Great playing!', 'Brilliant!'][stars],
+    text: pct + '%. ' + (waitMode() ? played.length + ' notes, ' + wrongKeys + '.'
+      : perfect + ' perfect, ' + good + ' good, ' + missed + ' missed, ' + wrongKeys + '.')
+      + (better && was ? ' A new best!' : ''),
+  };
+  handsRender();
+  if (stars) sparkle(innerWidth / 2, innerHeight / 2.4, 46, KID_COLORS, Math.min(innerWidth, innerHeight) * 0.45);
+}
+
+// Everything on the Two hands screen except the moving music
+function handsRender() {
+  const done = run.state === 'done';
+  showDone(done, done ? run.result.stars : 0, done ? run.result.title : '', done ? run.result.text : '');
+  $('lessonListen').querySelector('span').textContent = run.demo ? 'Stop' : 'Listen';
+  $('lessonRestart').textContent = run.state === 'ready' ? 'Start' : 'Start again';
+  $('handsControls').querySelectorAll('.seg').forEach(seg => {
+    seg.hidden = seg.dataset.set === 'band' && waitMode();
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(settings[seg.dataset.set]) === b.dataset.v));
+  });
+  const keyboard = midiState === 'connected' ? '' : ' Connect your keyboard at the top, or tap the keys.';
+  $('lessonHint').textContent = run.demo ? 'Listen to how it goes.'
+    : run.state === 'ready' ? (waitMode() ? 'Press Start, or just play the first notes. The music waits for you.'
+      : 'Press Start for a count-in, then play each note as it reaches the line.') + keyboard
+    : (waitMode() ? 'Play the coloured notes. Teal is your right hand, purple your left.'
+      : 'Play each note as it reaches the line. Teal is your right hand, purple your left.') + keyboard;
+}
+
+function handsListen() {
+  if (run.demo) return resetRun();
+  resetRun();
+  startRun(true);
+}
+
+function handsRestart() {
+  if (run.state === 'ready') return startRun(false);
+  resetRun();
+  startRun(false);
+}
+
+let drumNoise = null;
+function drum(kind, delay) {
+  if (!ensureAudio()) return;
+  const t = audio.currentTime + 0.01 + delay, out = audio.createGain();
+  const env = (level, decay) => {
+    out.gain.setValueAtTime(level, t);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+  };
+  out.connect(master);
+  if (kind === 'kick' || kind === 'click' || kind === 'accent') {
+    const o = audio.createOscillator();
+    if (kind === 'kick') {
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      env(0.8, 0.3);
+    } else {
+      o.frequency.value = kind === 'accent' ? 2000 : 1500;
+      env(0.3, 0.06);
+    }
+    o.connect(out);
+    o.start(t);
+    o.stop(t + 0.32);
+    return;
+  }
+  if (!drumNoise) {
+    drumNoise = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.3), audio.sampleRate);
+    const d = drumNoise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = audio.createBufferSource(), f = audio.createBiquadFilter();
+  src.buffer = drumNoise;
+  f.type = kind === 'hat' ? 'highpass' : 'bandpass';
+  f.frequency.value = kind === 'hat' ? 7000 : 1800;
+  src.connect(f).connect(out);
+  env(kind === 'hat' ? 0.12 : 0.4, kind === 'hat' ? 0.05 : 0.16);
+  src.start(t);
+  src.stop(t + 0.3);
 }
 
 /* ---------------------------- sound ---------------------------- */
@@ -2385,6 +2772,19 @@ $('lessonListen').onclick = lessonListen;
 $('lessonRestart').onclick = lessonRestart;
 $('lessonAgain').onclick = lessonRestart;
 $('lessonMore').onclick = () => go(lesson.mode);
+$('handsControls').querySelectorAll('.seg').forEach(seg => (seg.onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const v = b.dataset.v;
+  settings[seg.dataset.set] = seg.dataset.set === 'speed' ? +v : seg.dataset.set === 'band' ? v === 'true' : v;
+  saveSettings();
+  handsOpen();                                 // which hand is played for you changes how the music looks
+}));
+window.addEventListener('resize', () => {
+  if (view !== 'lesson' || kidMode()) return;
+  measureScore();
+  handsView();
+});
 
 document.querySelectorAll('.midi-pill').forEach(p => (p.onclick = openMidiSheet));
 $('midiClose').onclick = closeMidiSheet;
