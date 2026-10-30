@@ -1411,6 +1411,8 @@ const KID_SONGS = [
 
 // Two hands: a right-hand and a left-hand part for each line, written on a grand staff
 const CANON_BASS = 'D3:2 A2:2 B2:2 F#2:2 G2:2 D2:2 G2:2 A2:2';
+// a bar of rocking eighths: the low note on each beat and the two above it on the and
+const rock = (low, high) => `${low}:.5 ${high}:.5 `.repeat(4).trim();
 const HAND_SONGS = [
   { id: 'twinkle', title: 'Twinkle, Twinkle, Little Star', level: 'Warm-up', beat: 0.55, lines: [
     { right: 'C C G G A A G:2 F F E E D D C:2', left: 'C3:4 F3:2 C3:2 F3:2 C3:2 G2:2 C3:2' },
@@ -1445,6 +1447,30 @@ const HAND_SONGS = [
       left: 'R:1.5 A2:.25 E3:.25 A3:.25 R:.75' },
     { right: 'B4:.5 R:.25 E4:.25 C5:.25 B4:.25 A4:1.5',
       left: 'E2:.25 E3:.25 G#3:.25 R:.75 A2:.25 E3:.25 A3:.25 R:.75' },
+  ] },
+  { id: 'feel-the-love', title: 'Can You Feel the Love Tonight', by: 'Elton John', level: 'Easy', beat: 0.6, sharps: -1, lines: [
+    { right: 'D4:.5 E4:.5 F4 G4:.5 F4:.5 C4 D4:.5 E4:.5 F4 G4:.5 F4:1.5 D4:.5 E4:.5 F4:.5 G4:.5 F4:.5 C5:.5 A4 Bb4 A4:.5 G4 A4:.5 G4',
+      left: 'Bb2:2 A2:2 Bb2:2 A2:2 Bb2:2 A2:2 G2:2 C3:2' },
+    { right: 'D4:.5 E4:.5 F4 G4:.5 F4:.5 C4 D4:.5 E4:.5 F4 G4:.5 F4:1.5 D4:.5 E4:.5 F4:.5 C5:.5 C5:.5 A4:.5 F4:.5 D4:.5 Bb4 A4:.5 G4 A4:.5 G4',
+      left: 'Bb2:2 A2:2 Bb2:2 D3:2 Bb2:2 A2:2 G2:2 C3:2' },
+    { right: 'C5:.5 C5:.5 A4 G4:.5 C5:1.5 A4:.5 F4:.5 D4:3 C4:.5 C4:.5 F4 Bb4:1.5 A4:.5 G4:4',
+      left: 'F3:2 E3:2 D3:2 Bb2:2 F3:2 Bb2:2 B2:2 C3:2' },
+    { right: 'D4:.5 E4:.5 F4 C5:.5 C5:.5 C5:.5 A4:.5 F4:.5 F4:.5 D4:3 Bb4 A4 G4 A4 G4:4',
+      left: 'Bb2:2 A2:2 D3:2 C3:2 Bb2:2 G2:2 C3:4' },
+    { right: 'C5:.5 C5:.5 A4 G4:.5 C5:1.5 A4:.5 F4:.5 D4:3 C4:.5 C4:.5 F4 Bb4:1.5 A4:.5 G4:4',
+      left: 'F3:2 E3:2 D3:2 Bb2:2 F3:2 Bb2:2 B2:2 C3:2' },
+    { right: 'D4:.5 E4:.5 F4 C5:.5 C5:.5 C5:.5 A4:.5 F4:.5 F4:.5 D4:3 Bb4 A4 G4 F4 F4:4',
+      left: 'Bb2:2 A2:2 D3:2 C3:2 Bb2:2 C3:2 F2+F3:4' },
+  ] },
+  { id: 'dont-stop-believin', title: "Don't Stop Believin' (piano part)", by: 'Journey', level: 'Advanced', beat: 0.5, sharps: 4, lines: [
+    { right: [rock('E4', 'G#4+B4'), rock('D#4', 'F#4+B4'), rock('E4', 'G#4+C#5'), rock('E4', 'A4+C#5')].join(' '),
+      left: 'E2:2 E3:1.5 B2:.5 B2:2 B3:1.5 C#3:.5 C#3:2 C#4:1.5 A2:.5 A2:2 A3:1.5 E2:.5' },
+    { right: [rock('E4', 'G#4+B4'), rock('D#4', 'F#4+B4'), rock('D#4', 'G#4+B4'), rock('E4', 'A4+C#5')].join(' '),
+      left: 'E2:2 E3:1.5 B2:.5 B2:2 B3:1.5 G#2:.5 G#2:2 G#3:1.5 A2:.5 A2:2 A3:1.5 E2:.5' },
+    { right: [rock('E4', 'G#4+B4'), rock('D#4', 'F#4+B4'), rock('E4', 'G#4+C#5'), rock('E4', 'A4+C#5')].join(' '),
+      left: 'E2:2 E3:1.5 B2:.5 B2:2 B3:1.5 C#3:.5 C#3:2 C#4:1.5 A2:.5 A2:2 A3:1.5 E2:.5' },
+    { right: [rock('E4', 'G#4+B4'), rock('D#4', 'F#4+B4'), rock('D#4', 'G#4+B4'), rock('E4', 'A4+C#5'), 'E4+G#4+B4:4'].join(' '),
+      left: 'E2:2 E3:1.5 B2:.5 B2:2 B3:1.5 G#2:.5 G#2:2 G#3:1.5 A2:.5 A2:2 A3:2 E2+E3:4' },
   ] },
 ];
 
